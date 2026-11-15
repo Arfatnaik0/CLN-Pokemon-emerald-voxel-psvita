@@ -1,0 +1,1399 @@
+diff --git a/include/battle_transition.h b/include/battle_transition.h
+index 1e7339f..0a41763 100755
+--- a/include/battle_transition.h
++++ b/include/battle_transition.h
+@@ -7,6 +7,9 @@ bool8 IsBattleTransitionDone(void);
+ bool8 FldEff_PokeballTrail(void);
+ void Task_BattleTransition_Intro(u8 taskId);
+ void GetBg0TilesDst(u16 **tilemap, u16 **tileset);
++#ifdef PLATFORM_VITA
++bool8 BattleTransition_IsPurePpuHBlankCallback(void (*callback)(void));
++#endif
+ 
+ extern const struct SpritePalette gSpritePalette_Pokeball;
+ 
+diff --git a/include/decoration.h b/include/decoration.h
+index 415ffb8..f967956 100755
+--- a/include/decoration.h
++++ b/include/decoration.h
+@@ -64,5 +64,6 @@ void ShowDecorationCategoriesWindow(u8 taskId);
+ void CopyDecorationCategoryName(u8 *dest, u8 category);
+ bool8 IsSelectedDecorInThePC(void);
+ u8 AddDecorationIconObject(u8 decor, s16 x, s16 y, u8 priority, u16 tilesTag, u16 paletteTag);
++bool8 Decoration_IsFieldModeActive(void);
+ 
+ #endif //GUARD_DECORATION_H
+diff --git a/include/overworld.h b/include/overworld.h
+index bde6896..8d2f63e 100755
+--- a/include/overworld.h
++++ b/include/overworld.h
+@@ -154,5 +154,6 @@ bool32 Overworld_RecvKeysFromLinkIsRunning(void);
+ bool32 Overworld_SendKeysToLinkIsRunning(void);
+ bool32 IsSendingKeysOverCable(void);
+ void ClearLinkPlayerObjectEvents(void);
++bool8 Overworld_IsReturningToField(void);
+ 
+ #endif // GUARD_OVERWORLD_H
+diff --git a/include/platform.h b/include/platform.h
+index 768f131..1f6d027 100755
+--- a/include/platform.h
++++ b/include/platform.h
+@@ -20,9 +20,16 @@ enum PlatformSetting
+     PLATFORM_SETTING_VSYNC,
+     PLATFORM_SETTING_BORDER,
+     PLATFORM_SETTING_VOLUME,
++    PLATFORM_SETTING_VOXEL_3D,
++    PLATFORM_SETTING_VOXEL_RES,
++    PLATFORM_SETTING_VOXEL_FPS,
+     PLATFORM_SETTING_COUNT,
+ };
+ 
++bool8 Platform_IsVoxelOverworldActive(void);
++int VitaPlatform_GetRenderWidth(void);
++int VitaPlatform_GetRenderHeight(void);
++
+ u8 Platform_GetSetting(enum PlatformSetting setting);
+ void Platform_SetSetting(enum PlatformSetting setting, u8 value);
+ void Platform_GetStatus(struct SiiRtcInfo *rtc);
+diff --git a/include/shop.h b/include/shop.h
+index 367c06e..373e769 100755
+--- a/include/shop.h
++++ b/include/shop.h
+@@ -7,5 +7,6 @@ void CreatePokemartMenu(const u16 *itemsForSale);
+ void CreateDecorationShop1Menu(const u16 *itemsForSale);
+ void CreateDecorationShop2Menu(const u16 *itemsForSale);
+ void CB2_ExitSellMenu(void);
++bool8 Shop_IsBuyMenuActive(void);
+ 
+ #endif // GUARD_SHOP_H
+diff --git a/include/sprite.h b/include/sprite.h
+index 822c986..85d1f35 100644
+--- a/include/sprite.h
++++ b/include/sprite.h
+@@ -261,6 +261,7 @@ extern u16 gReservedSpriteTileCount;
+ extern s16 gSpriteCoordOffsetX;
+ extern s16 gSpriteCoordOffsetY;
+ extern struct OamMatrix gOamMatrices[OAM_MATRIX_COUNT];
++extern u32 gScreenOam[4];
+ extern bool8 gAffineAnimsDisabled;
+ 
+ void ResetSpriteData(void);
+diff --git a/src/battle_transition.c b/src/battle_transition.c
+index a6ba812..0ea0d62 100644
+--- a/src/battle_transition.c
++++ b/src/battle_transition.c
+@@ -283,6 +283,19 @@ static void SpriteCB_FldEffPokeballTrail(struct Sprite *);
+ static void SpriteCB_MugshotTrainerPic(struct Sprite *);
+ static void SpriteCB_WhiteBarFade(struct Sprite *);
+ static bool8 MugshotTrainerPic_Pause(struct Sprite *);
++
++#ifdef PLATFORM_VITA
++bool8 BattleTransition_IsPurePpuHBlankCallback(void (*callback)(void))
++{
++    return callback == HBlankCB_Swirl
++        || callback == HBlankCB_Shuffle
++        || callback == HBlankCB_Ripple
++        || callback == HBlankCB_Slice
++        || callback == HBlankCB_WhiteBarsFade
++        || callback == HBlankCB_FrontierLogoWave
++        || callback == HBlankCB_Mugshots;
++}
++#endif
+ static bool8 MugshotTrainerPic_Init(struct Sprite *);
+ static bool8 MugshotTrainerPic_Slide(struct Sprite *);
+ static bool8 MugshotTrainerPic_SlideSlow(struct Sprite *);
+@@ -1023,6 +1036,11 @@ static void UNUSED TestBattleTransition(u8 transitionId)
+     SetMainCallback2(CB2_TestBattleTransition);
+ }
+ 
++bool8 BattleTransition_IsActiveForUi(void)
++{
++    return sTransitionData != NULL;
++}
++
+ void BattleTransition_StartOnField(u8 transitionId)
+ {
+     gMain.callback2 = CB2_OverworldBasic;
+diff --git a/src/decoration.c b/src/decoration.c
+index 2bb9789..b1043a3 100644
+--- a/src/decoration.c
++++ b/src/decoration.c
+@@ -126,6 +126,12 @@ EWRAM_DATA static u8 sDecorationLastDirectionMoved = 0;
+ EWRAM_DATA static struct OamData sDecorSelectorOam = {};
+ EWRAM_DATA static struct DecorRearrangementDataBuffer sDecorRearrangementDataBuffer[DECOR_MAX_SECRET_BASE] = {};
+ EWRAM_DATA static u8 sCurDecorSelectedInRearrangement = 0;
++static bool8 sDecorationFieldMode = FALSE;
++
++bool8 Decoration_IsFieldModeActive(void)
++{
++    return sDecorationFieldMode;
++}
+ 
+ static void HandleDecorationActionsMenuInput(u8 taskId);
+ static void PrintCurMainMenuDescription(void);
+@@ -1365,6 +1371,7 @@ static void Task_PlaceDecoration(u8 taskId)
+         case 0:
+             if (!gPaletteFade.active)
+             {
++                sDecorationFieldMode = TRUE;
+                 SetInitialPositions(taskId);
+                 gTasks[taskId].tState = 1;
+             }
+@@ -1789,6 +1796,7 @@ static void FieldCB_InitDecorationItemsWindow(void)
+ {
+     u8 taskId;
+ 
++    sDecorationFieldMode = FALSE;
+     LockPlayerFieldControls();
+     FadeInFromBlack();
+     taskId = CreateTask(Task_InitDecorationItemsWindow, 8);
+@@ -2331,6 +2339,7 @@ static void Task_ContinuePuttingAwayDecorations(u8 taskId)
+     case 0:
+         if (!gPaletteFade.active)
+         {
++            sDecorationFieldMode = TRUE;
+             SetInitialPositions(taskId);
+             tState = 1;
+             tDecorHeight = 1;
+@@ -2686,6 +2695,7 @@ static void FieldCB_StopPuttingAwayDecorations(void)
+ {
+     u8 taskId;
+ 
++    sDecorationFieldMode = FALSE;
+     FadeInFromBlack();
+     DrawDialogueFrame(0, TRUE);
+     InitDecorationActionsWindow();
+diff --git a/src/event_object_movement.c b/src/event_object_movement.c
+index 22c1dce..ace4d30 100644
+--- a/src/event_object_movement.c
++++ b/src/event_object_movement.c
+@@ -8,11 +8,6 @@
+ #ifdef PLATFORM_SDL2
+ #include "follower_mon.h"
+ #endif
+-#if defined(PLATFORM_VITA)
+-#include "platform/voxel/voxel_renderer.h"
+-#include "platform/voxel/voxel_world.h"
+-#include "platform/voxel/voxel_object_window.h"
+-#endif
+ #include "event_scripts.h"
+ #include "script.h"
+ #include "faraway_island.h"
+@@ -26,6 +21,10 @@
+ #include "metatile_behavior.h"
+ #include "overworld.h"
+ #include "palette.h"
++#include "platform.h"
++#ifdef VOXEL_SUPPORTED
++#include "platform/voxel/3ds_field_view.h"
++#endif
+ #include "random.h"
+ #include "sprite.h"
+ #include "task.h"
+@@ -214,16 +213,6 @@ static const struct SpriteTemplate sCameraSpriteTemplate = {
+     .callback = SpriteCB_CameraObject
+ };
+ 
+-#if defined(PLATFORM_VITA)
+-static bool8 sLastVoxelMode = FALSE;
+-static bool8 sLastVoxelModeInitialized = FALSE;
+-static bool8 sVoxelModeSyncPending = FALSE;
+-static void CheckVoxelObjectModeSync(void);
+-static void Task_VoxelModeSync(u8 taskId);
+-static void RequestVoxelObjectModeSync(void);
+-static bool8 CanDisplaceObjectEvent(u8 objEventId, s16 left, s16 right, s16 top, s16 bottom);
+-#endif
+-
+ enum {
+     CAMERA_STATE_INIT,
+     CAMERA_STATE_MOVE,
+@@ -1218,11 +1207,6 @@ static void ClearAllObjectEvents(void)
+ 
+ void ResetObjectEvents(void)
+ {
+-#if defined(PLATFORM_VITA)
+-    sLastVoxelMode = gVoxelModeEnabled;
+-    sLastVoxelModeInitialized = TRUE;
+-    sVoxelModeSyncPending = FALSE;
+-#endif
+     ClearLinkPlayerObjectEvents();
+     ClearAllObjectEvents();
+     ClearPlayerAvatarInfo();
+@@ -1683,122 +1667,121 @@ u8 CreateVirtualObject(u8 graphicsId, u8 virtualObjId, s16 x, s16 y, u8 elevatio
+     return spriteId;
+ }
+ 
+-static bool8 IsVoxelObjectEventViewActive(void)
++static void GetObjectEventViewBounds(s16 *left, s16 *right, s16 *top, s16 *bottom)
+ {
+-#if defined(PLATFORM_VITA)
+-    if (gVoxelModeEnabled && gMapHeader.mapLayout != NULL
+-     && gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT)
+-    {
+-        const struct ObjectEvent *player = &gObjectEvents[gPlayerAvatar.objectEventId];
+-        if (player->active)
+-            return TRUE;
+-    }
+-#endif
+-    return FALSE;
+-}
++#ifdef VOXEL_SUPPORTED
++    s16 playerX = gSaveBlock1Ptr->pos.x + MAP_OFFSET;
++    s16 playerY = gSaveBlock1Ptr->pos.y + MAP_OFFSET;
++    int west, east, north, south;
+ 
+-static void GetLegacyObjectEventViewBounds(s16 *left, s16 *right, s16 *top, s16 *bottom)
+-{
++    CtrFieldView_Window(CtrFieldView_Current(), 2, &west, &east, &north, &south);
++    *left = playerX - west;
++    *right = playerX + east;
++    *top = playerY - north;
++    *bottom = playerY + south;
++#else
+     *left = gSaveBlock1Ptr->pos.x - 2;
+     *right = gSaveBlock1Ptr->pos.x + MAP_OFFSET_W + 2;
+     *top = gSaveBlock1Ptr->pos.y;
+     *bottom = gSaveBlock1Ptr->pos.y + MAP_OFFSET_H + 2;
+-}
+-
+-/* The original 2D camera owns a 19x17-ish event window. The Vita voxel
+- * camera can show actors outside it, so use a camera-matched conservative
+- * window for both spawn and removal while voxel overworld rendering is active.
+- * Keeping both paths on one helper avoids despawning an actor that the 3D
+- * renderer can still see. */
+-static void GetObjectEventViewBounds(s16 *left, s16 *right, s16 *top, s16 *bottom)
+-{
+-#if defined(PLATFORM_VITA)
+-    if (IsVoxelObjectEventViewActive())
+-    {
+-        const struct ObjectEvent *player = &gObjectEvents[gPlayerAvatar.objectEventId];
+-        int voxelLeft, voxelRight, voxelTop, voxelBottom;
+-        VoxelObjectWindow_GetBounds(player->currentCoords.x, player->currentCoords.y,
+-                                    &voxelLeft, &voxelRight, &voxelTop, &voxelBottom);
+-        *left = voxelLeft;
+-        *right = voxelRight;
+-        *top = voxelTop;
+-        *bottom = voxelBottom;
+-        return;
+-    }
+ #endif
+-    GetLegacyObjectEventViewBounds(left, right, top, bottom);
+ }
+ 
+ static bool8 IsObjectEventInViewBounds(s16 x, s16 y,
+                                        s16 left, s16 right,
+                                        s16 top, s16 bottom)
+ {
+-#if defined(PLATFORM_VITA)
+-    return VoxelObjectWindow_Contains(x, y, left, right, top, bottom);
+-#else
+     return x >= left && x <= right && y >= top && y <= bottom;
+-#endif
+ }
+ 
+-#if defined(PLATFORM_VITA)
+-static bool8 CanDisplaceObjectEvent(u8 objEventId, s16 left, s16 right, s16 top, s16 bottom)
++#ifdef VOXEL_SUPPORTED
++#define OBJECT_EVENT_VIEW_MARGIN 2
++#define OBJECT_EVENT_EVICT_GAP 4
++
++static float ObjectEventViewScore(s16 x, s16 y)
++{
++    return CtrFieldView_Score(CtrFieldView_Current(),
++                              x - (gSaveBlock1Ptr->pos.x + MAP_OFFSET),
++                              y - (gSaveBlock1Ptr->pos.y + MAP_OFFSET));
++}
++
++static bool8 IsLinkPlayerObjectEvent(u8 objectEventId)
+ {
+-    struct ObjectEvent *obj;
+     u8 j;
+ 
+-    if (objEventId >= OBJECT_EVENTS_COUNT)
+-        return FALSE;
++    for (j = 0; j < ARRAY_COUNT(gLinkPlayerObjectEvents); j++)
++    {
++        if (gLinkPlayerObjectEvents[j].active && objectEventId == gLinkPlayerObjectEvents[j].objEventId)
++            return TRUE;
++    }
++    return FALSE;
++}
+ 
+-    obj = &gObjectEvents[objEventId];
++static u8 GetSpawnableObjectEventCount(void)
++{
++    if (CurrentBattlePyramidLocation() != PYRAMID_LOCATION_NONE)
++        return GetNumBattlePyramidObjectEvents();
++    else if (InTrainerHill())
++        return HILL_TRAINERS_PER_FLOOR;
++    else
++        return gMapHeader.events->objectEventCount;
++}
+ 
+-    if (!obj->active || obj->isPlayer)
+-        return FALSE;
++static bool8 CanEvictObjectEvent(u8 objectEventId, s16 left, s16 right, s16 top, s16 bottom)
++{
++    struct ObjectEvent *objectEvent = &gObjectEvents[objectEventId];
++    u8 count;
+ 
+-    if (obj->localId >= SPECIAL_LOCALIDS_START)
++    if (!objectEvent->active || objectEvent->isPlayer || objectEvent->frozen
++     || objectEvent->heldMovementActive || IsLinkPlayerObjectEvent(objectEventId))
+         return FALSE;
+-
+ #ifdef PLATFORM_SDL2
+-    if (FollowerMon_IsFollower(obj))
++    if (FollowerMon_IsFollower(objectEvent))
+         return FALSE;
+ #endif
++    if (!IsObjectEventInViewBounds(objectEvent->currentCoords.x, objectEvent->currentCoords.y, left, right, top, bottom)
++     && !IsObjectEventInViewBounds(objectEvent->initialCoords.x, objectEvent->initialCoords.y, left, right, top, bottom))
++        return TRUE;
++    if (objectEvent->mapNum != gSaveBlock1Ptr->location.mapNum
++     || objectEvent->mapGroup != gSaveBlock1Ptr->location.mapGroup)
++        return TRUE;
++    count = GetSpawnableObjectEventCount();
++    return FindObjectEventTemplateByLocalId(objectEvent->localId, gSaveBlock1Ptr->objectEventTemplates, count) != NULL;
++}
+ 
+-    for (j = 0; j < ARRAY_COUNT(gLinkPlayerObjectEvents); j++)
++static bool8 HasFreeObjectEventSlot(void)
++{
++    u8 i;
++
++    for (i = 0; i < OBJECT_EVENTS_COUNT; i++)
+     {
+-        if (gLinkPlayerObjectEvents[j].active && objEventId == gLinkPlayerObjectEvents[j].objEventId)
+-            return FALSE;
++        if (!gObjectEvents[i].active)
++            return TRUE;
+     }
++    return FALSE;
++}
+ 
+-    if (obj->heldMovementActive || obj->singleMovementActive || obj->frozen)
+-        return FALSE;
+-
+-    if (objEventId == gSelectedObjectEvent)
+-        return FALSE;
++static bool8 EvictFurthestObjectEvent(float score, s16 left, s16 right, s16 top, s16 bottom)
++{
++    u8 i, furthest = OBJECT_EVENTS_COUNT;
++    float furthestScore = score + OBJECT_EVENT_EVICT_GAP;
+ 
+-    if (gNoOfApproachingTrainers > 0)
++    for (i = 0; i < OBJECT_EVENTS_COUNT; i++)
+     {
+-        for (j = 0; j < gNoOfApproachingTrainers; j++)
+-        {
+-            if (gApproachingTrainers[j].objectEventId == objEventId)
+-                return FALSE;
+-        }
+-    }
++        float objectScore;
+ 
+-    if (gTrainerApproachedPlayer)
+-    {
+-        for (j = 0; j < ARRAY_COUNT(gApproachingTrainers); j++)
++        if (!CanEvictObjectEvent(i, left, right, top, bottom))
++            continue;
++        objectScore = ObjectEventViewScore(gObjectEvents[i].currentCoords.x, gObjectEvents[i].currentCoords.y);
++        if (objectScore > furthestScore)
+         {
+-            if (gApproachingTrainers[j].objectEventId == objEventId)
+-                return FALSE;
++            furthestScore = objectScore;
++            furthest = i;
+         }
+     }
+-
+-    /* Never displace inner 2D window objects */
+-    if (VoxelObjectWindow_Contains(obj->currentCoords.x, obj->currentCoords.y,
+-                                   left, right, top, bottom)
+-     || VoxelObjectWindow_Contains(obj->initialCoords.x, obj->initialCoords.y,
+-                                   left, right, top, bottom))
++    if (furthest == OBJECT_EVENTS_COUNT)
+         return FALSE;
+-
++    RemoveObjectEvent(&gObjectEvents[furthest]);
+     return TRUE;
+ }
+ #endif
+@@ -1807,17 +1790,12 @@ void TrySpawnObjectEvents(s16 cameraX, s16 cameraY)
+ {
+     u8 i;
+     u8 objectCount;
+-    bool8 voxelView;
+ 
+     if (gMapHeader.events != NULL)
+     {
+         s16 left, right, top, bottom;
+ 
+-        voxelView = IsVoxelObjectEventViewActive();
+-        if (voxelView)
+-            GetLegacyObjectEventViewBounds(&left, &right, &top, &bottom);
+-        else
+-            GetObjectEventViewBounds(&left, &right, &top, &bottom);
++        GetObjectEventViewBounds(&left, &right, &top, &bottom);
+ 
+         if (CurrentBattlePyramidLocation() != PYRAMID_LOCATION_NONE)
+             objectCount = GetNumBattlePyramidObjectEvents();
+@@ -1829,151 +1807,109 @@ void TrySpawnObjectEvents(s16 cameraX, s16 cameraY)
+         if (objectCount > OBJECT_EVENT_TEMPLATES_COUNT)
+             objectCount = OBJECT_EVENT_TEMPLATES_COUNT;
+ 
+-        for (i = 0; i < objectCount; i++)
+-        {
+-            struct ObjectEventTemplate *template = &gSaveBlock1Ptr->objectEventTemplates[i];
+-            s16 npcX = template->x + MAP_OFFSET;
+-            s16 npcY = template->y + MAP_OFFSET;
+-
+-            if (IsObjectEventInViewBounds(npcX, npcY, left, right, top, bottom)
+-                && !FlagGet(template->flagId))
+-                TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum, gSaveBlock1Ptr->location.mapGroup, cameraX, cameraY);
+-        }
+-
+-#if defined(PLATFORM_VITA)
+-        /* Spawn extra 3D-visible actors only after every actor in the original
+-         * 2D window has had a chance to load. Rank the outer ring by distance,
+-         * and preserve two event slots for the follower/script-created actors.
+-         * The event table remains capped at OBJECT_EVENTS_COUNT. */
+-        if (voxelView)
++#ifdef VOXEL_SUPPORTED
+         {
+-            struct OuterObjectCandidate
+-            {
+-                u8 templateIndex;
+-                u32 distanceSquared;
+-            } candidates[OBJECT_EVENT_TEMPLATES_COUNT];
+-            u8 candidateCount = 0;
+-            u8 freeSlots = 0;
+-            s16 playerX = gObjectEvents[gPlayerAvatar.objectEventId].currentCoords.x;
+-            s16 playerY = gObjectEvents[gPlayerAvatar.objectEventId].currentCoords.y;
+-            s16 voxelLeft, voxelRight, voxelTop, voxelBottom;
+-
+-            GetObjectEventViewBounds(&voxelLeft, &voxelRight, &voxelTop, &voxelBottom);
+-            for (i = 0; i < OBJECT_EVENTS_COUNT; i++)
+-                if (!gObjectEvents[i].active)
+-                    freeSlots++;
++            u8 j, waiting = 0;
++            u8 order[OBJECT_EVENT_TEMPLATES_COUNT];
++            float score[OBJECT_EVENT_TEMPLATES_COUNT];
++            u8 mapNum = gSaveBlock1Ptr->location.mapNum;
++            u8 mapGroup = gSaveBlock1Ptr->location.mapGroup;
+ 
+             for (i = 0; i < objectCount; i++)
+             {
+                 struct ObjectEventTemplate *template = &gSaveBlock1Ptr->objectEventTemplates[i];
+                 s16 npcX = template->x + MAP_OFFSET;
+                 s16 npcY = template->y + MAP_OFFSET;
+-                s32 dx = npcX - playerX;
+-                s32 dy = npcY - playerY;
+-                u32 distanceSquared;
+-                u8 j;
+-
+-                if (!VoxelObjectWindow_IsOuterCandidate(npcX, npcY,
+-                                                        voxelLeft, voxelRight,
+-                                                        voxelTop, voxelBottom,
+-                                                        left, right, top, bottom)
+-                 || FlagGet(template->flagId)
+-                 || GetObjectEventIdByLocalIdAndMap(template->localId,
+-                                                    gSaveBlock1Ptr->location.mapNum,
+-                                                    gSaveBlock1Ptr->location.mapGroup) != OBJECT_EVENTS_COUNT)
+-                    continue;
++                float npcScore;
+ 
+-                distanceSquared = (u32)(dx * dx + dy * dy);
+-                for (j = candidateCount; j > 0
+-                     && candidates[j - 1].distanceSquared > distanceSquared; j--)
+-                    candidates[j] = candidates[j - 1];
+-                candidates[j].templateIndex = i;
+-                candidates[j].distanceSquared = distanceSquared;
+-                candidateCount++;
++                if (!IsObjectEventInViewBounds(npcX, npcY, left, right, top, bottom) || FlagGet(template->flagId)
++                 || GetObjectEventIdByLocalIdAndMap(template->localId, mapNum, mapGroup) != OBJECT_EVENTS_COUNT)
++                    continue;
++                npcScore = ObjectEventViewScore(npcX, npcY);
++                for (j = waiting; j > 0 && score[j - 1] > npcScore; j--)
++                {
++                    order[j] = order[j - 1];
++                    score[j] = score[j - 1];
++                }
++                order[j] = i;
++                score[j] = npcScore;
++                waiting++;
+             }
+ 
+-            for (i = 0; i < candidateCount; i++)
++            for (i = 0; i < waiting; i++)
+             {
+-                struct ObjectEventTemplate *template =
+-                    &gSaveBlock1Ptr->objectEventTemplates[candidates[i].templateIndex];
++                if (!HasFreeObjectEventSlot() && !EvictFurthestObjectEvent(score[i], left, right, top, bottom))
++                    break;
++                TrySpawnObjectEventTemplate(&gSaveBlock1Ptr->objectEventTemplates[order[i]], mapNum, mapGroup, cameraX, cameraY);
++            }
+ 
+-                if (VoxelObjectWindow_CanSpawnOuterActor(freeSlots))
+-                {
+-                    if (TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum,
+-                                                    gSaveBlock1Ptr->location.mapGroup,
+-                                                    cameraX, cameraY) != OBJECT_EVENTS_COUNT)
+-                        freeSlots--;
+-                }
+-                else
++            if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D) && gMapHeader.connections != NULL)
++            {
++                for (int c = 0; c < gMapHeader.connections->count; c++)
+                 {
+-                    /* Slots are exhausted down to reserved threshold. If this candidate is
+-                     * closer to the player than an existing active outer non-scripted object,
+-                     * displace that furthest object to make room for this closer one.
+-                     * Displacement is transactional: the victim is not removed unless replacement
+-                     * spawn succeeds. Displaced templates retain their map flags and remain
+-                     * respawnable when the player approaches. */
+-                    u8 furthestObjId = OBJECT_EVENTS_COUNT;
+-                    u32 furthestDistSq = 0;
+-                    u8 k;
+-
+-                    for (k = 0; k < OBJECT_EVENTS_COUNT; k++)
++                    const struct MapConnection *conn = &gMapHeader.connections->connections[c];
++                    const struct MapHeader *connHeader = Overworld_GetMapHeaderByGroupAndId(conn->mapGroup, conn->mapNum);
++                    if (connHeader == NULL || connHeader->events == NULL || connHeader->events->objectEvents == NULL)
++                        continue;
++
++                    s16 connOffX = 0, connOffY = 0;
++                    if (conn->direction == CONNECTION_SOUTH)
+                     {
+-                        struct ObjectEvent *obj = &gObjectEvents[k];
+-                        s32 odx, ody;
+-                        u32 odist;
++                        connOffX = (s16)conn->offset;
++                        connOffY = (s16)gMapHeader.mapLayout->height;
++                    }
++                    else if (conn->direction == CONNECTION_NORTH)
++                    {
++                        connOffX = (s16)conn->offset;
++                        connOffY = (s16)-connHeader->mapLayout->height;
++                    }
++                    else if (conn->direction == CONNECTION_WEST)
++                    {
++                        connOffX = (s16)-connHeader->mapLayout->width;
++                        connOffY = (s16)conn->offset;
++                    }
++                    else if (conn->direction == CONNECTION_EAST)
++                    {
++                        connOffX = (s16)gMapHeader.mapLayout->width;
++                        connOffY = (s16)conn->offset;
++                    }
++                    else
++                    {
++                        continue;
++                    }
++
++                    for (u8 t = 0; t < connHeader->events->objectEventCount; t++)
++                    {
++                        const struct ObjectEventTemplate *srcTemp = &connHeader->events->objectEvents[t];
++                        s16 npcX = (s16)(srcTemp->x + connOffX + MAP_OFFSET);
++                        s16 npcY = (s16)(srcTemp->y + connOffY + MAP_OFFSET);
+ 
+-                        if (!CanDisplaceObjectEvent(k, left, right, top, bottom))
++                        if (!IsObjectEventInViewBounds(npcX, npcY, left, right, top, bottom) || FlagGet(srcTemp->flagId)
++                         || GetObjectEventIdByLocalIdAndMap(srcTemp->localId, conn->mapNum, conn->mapGroup) != OBJECT_EVENTS_COUNT)
+                             continue;
+ 
+-                        odx = obj->currentCoords.x - playerX;
+-                        ody = obj->currentCoords.y - playerY;
+-                        odist = (u32)(odx * odx + ody * ody);
+-                        if (odist > furthestDistSq)
+-                        {
+-                            furthestDistSq = odist;
+-                            furthestObjId = k;
+-                        }
+-                    }
++                        if (!HasFreeObjectEventSlot() && !EvictFurthestObjectEvent(ObjectEventViewScore(npcX, npcY), left, right, top, bottom))
++                            break;
+ 
+-                    if (furthestObjId != OBJECT_EVENTS_COUNT && candidates[i].distanceSquared < furthestDistSq)
+-                    {
+-                        u8 newObjId;
+-
+-                        if (freeSlots > 0)
+-                        {
+-                            newObjId = TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum,
+-                                                                   gSaveBlock1Ptr->location.mapGroup,
+-                                                                   cameraX, cameraY);
+-                            if (newObjId != OBJECT_EVENTS_COUNT)
+-                            {
+-                                RemoveObjectEvent(&gObjectEvents[furthestObjId]);
+-                            }
+-                        }
+-                        else
+-                        {
+-                            struct ObjectEvent savedVictim = gObjectEvents[furthestObjId];
+-                            gObjectEvents[furthestObjId].active = FALSE;
+-                            newObjId = TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum,
+-                                                                   gSaveBlock1Ptr->location.mapGroup,
+-                                                                   cameraX, cameraY);
+-                            if (newObjId != OBJECT_EVENTS_COUNT)
+-                            {
+-                                struct SpriteFrameImage image;
+-                                image.size = GetObjectEventGraphicsInfo(savedVictim.graphicsId)->size;
+-                                gSprites[savedVictim.spriteId].images = &image;
+-                                DestroySprite(&gSprites[savedVictim.spriteId]);
+-                                if (newObjId != furthestObjId)
+-                                    ClearObjectEvent(&gObjectEvents[furthestObjId]);
+-                            }
+-                            else
+-                            {
+-                                gObjectEvents[furthestObjId] = savedVictim;
+-                            }
+-                        }
++                        struct ObjectEventTemplate shiftedTemp = *srcTemp;
++                        shiftedTemp.x = (s16)(srcTemp->x + connOffX);
++                        shiftedTemp.y = (s16)(srcTemp->y + connOffY);
++                        TrySpawnObjectEventTemplate(&shiftedTemp, conn->mapNum, conn->mapGroup, cameraX, cameraY);
+                     }
+                 }
+             }
+         }
++#else
++        for (i = 0; i < objectCount; i++)
++        {
++            struct ObjectEventTemplate *template = &gSaveBlock1Ptr->objectEventTemplates[i];
++            s16 npcX = template->x + MAP_OFFSET;
++            s16 npcY = template->y + MAP_OFFSET;
++
++            if (IsObjectEventInViewBounds(npcX, npcY, left, right, top, bottom)
++                && !FlagGet(template->flagId))
++                TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum, gSaveBlock1Ptr->location.mapGroup, cameraX, cameraY);
++        }
+ #endif
+     }
+ }
+@@ -1982,9 +1918,6 @@ void RemoveObjectEventsOutsideView(void)
+ {
+     u8 i, j;
+     bool8 isActiveLinkPlayer;
+-#if defined(PLATFORM_VITA)
+-    bool8 voxelView = IsVoxelObjectEventViewActive();
+-#endif
+ 
+     for (i = 0; i < OBJECT_EVENTS_COUNT; i++)
+     {
+@@ -1999,18 +1932,9 @@ void RemoveObjectEventsOutsideView(void)
+ 
+             if (objectEvent->active && !objectEvent->isPlayer)
+             {
+-#if defined(PLATFORM_VITA)
+-                if (voxelView)
+-                {
+ #ifdef PLATFORM_SDL2
+-                    if (FollowerMon_IsFollower(objectEvent))
+-                        continue;
+-#endif
+-                    if (objectEvent->heldMovementActive || objectEvent->singleMovementActive)
+-                        continue;
+-                    if (ScriptContext_IsEnabled() && (i == gSelectedObjectEvent || objectEvent->frozen))
+-                        continue;
+-                }
++                if (FollowerMon_IsFollower(objectEvent))
++                    continue;
+ #endif
+                 RemoveObjectEventIfOutsideView(objectEvent);
+             }
+@@ -2024,11 +1948,12 @@ static void RemoveObjectEventIfOutsideView(struct ObjectEvent *objectEvent)
+ 
+     GetObjectEventViewBounds(&left, &right, &top, &bottom);
+ 
+-    if (VoxelObjectWindow_ShouldKeepEvent(objectEvent->currentCoords.x,
+-                                          objectEvent->currentCoords.y,
+-                                          objectEvent->initialCoords.x,
+-                                          objectEvent->initialCoords.y,
+-                                          left, right, top, bottom))
++    if (IsObjectEventInViewBounds(objectEvent->currentCoords.x,
++                                  objectEvent->currentCoords.y,
++                                  left, right, top, bottom)
++     || IsObjectEventInViewBounds(objectEvent->initialCoords.x,
++                                  objectEvent->initialCoords.y,
++                                  left, right, top, bottom))
+         return;
+     RemoveObjectEvent(objectEvent);
+ }
+@@ -2554,106 +2479,11 @@ static bool8 ObjectEventDoesElevationMatch(struct ObjectEvent *objectEvent, u8 e
+     return TRUE;
+ }
+ 
+-#if defined(PLATFORM_VITA)
+-static void CheckVoxelObjectModeSync(void)
+-{
+-    if (!sLastVoxelModeInitialized)
+-    {
+-        sLastVoxelMode = gVoxelModeEnabled;
+-        sLastVoxelModeInitialized = TRUE;
+-        sVoxelModeSyncPending = FALSE;
+-        return;
+-    }
+-
+-    if (sLastVoxelMode != gVoxelModeEnabled)
+-    {
+-        /* Only resync when in a safe, free overworld state (not mid-warp,
+-         * not during battle/fade/script lock). */
+-        if ((gMain.callback2 == CB2_Overworld || gMain.callback2 == CB2_OverworldBasic)
+-         && gMapHeader.mapLayout != NULL
+-         && !ScriptContext_IsEnabled()
+-         && !ArePlayerFieldControlsLocked()
+-         && !gPaletteFade.active
+-         && gPlayerAvatar.objectEventId < OBJECT_EVENTS_COUNT
+-         && gObjectEvents[gPlayerAvatar.objectEventId].active)
+-        {
+-            sLastVoxelMode = gVoxelModeEnabled;
+-            sVoxelModeSyncPending = FALSE;
+-            if (gVoxelModeEnabled)
+-            {
+-                /* Switched from 2D to 3D voxel mode: spawn outer 3D objects */
+-                TrySpawnObjectEvents(0, 0);
+-            }
+-            else
+-            {
+-                /* Switched from 3D voxel mode to classic 2D: despawn outer objects */
+-                RemoveObjectEventsOutsideView();
+-                TrySpawnObjectEvents(0, 0);
+-            }
+-        }
+-    }
+-    else
+-    {
+-        sVoxelModeSyncPending = FALSE;
+-    }
+-}
+-
+-static void Task_VoxelModeSync(u8 taskId)
+-{
+-    if (!sVoxelModeSyncPending && sLastVoxelMode == gVoxelModeEnabled)
+-    {
+-        DestroyTask(taskId);
+-        return;
+-    }
+-
+-    CheckVoxelObjectModeSync();
+-
+-    if (!sVoxelModeSyncPending && sLastVoxelMode == gVoxelModeEnabled)
+-    {
+-        DestroyTask(taskId);
+-    }
+-}
+-
+-static void RequestVoxelObjectModeSync(void)
+-{
+-    if (!sLastVoxelModeInitialized)
+-    {
+-        sLastVoxelMode = gVoxelModeEnabled;
+-        sLastVoxelModeInitialized = TRUE;
+-        sVoxelModeSyncPending = FALSE;
+-        return;
+-    }
+-
+-    if (sLastVoxelMode != gVoxelModeEnabled)
+-    {
+-        sVoxelModeSyncPending = TRUE;
+-        if (!FuncIsActiveTask(Task_VoxelModeSync))
+-            CreateTask(Task_VoxelModeSync, 0);
+-    }
+-}
+-#endif
+-
+ void UpdateObjectEventsForCameraUpdate(s16 x, s16 y)
+ {
+     UpdateObjectEventCoordsForCameraUpdate();
+-#if defined(PLATFORM_VITA)
+-    if (sVoxelModeSyncPending)
+-        CheckVoxelObjectModeSync();
+-
+-    if (IsVoxelObjectEventViewActive())
+-    {
+-        RemoveObjectEventsOutsideView();
+-        TrySpawnObjectEvents(x, y);
+-    }
+-    else
+-    {
+-        TrySpawnObjectEvents(x, y);
+-        RemoveObjectEventsOutsideView();
+-    }
+-#else
+     TrySpawnObjectEvents(x, y);
+     RemoveObjectEventsOutsideView();
+-#endif
+ }
+ 
+ // The "CameraObject" functions below are responsible for an invisible sprite
+@@ -2672,10 +2502,6 @@ static void SpriteCB_CameraObject(struct Sprite *sprite)
+ {
+     void (*callbacks[ARRAY_COUNT(sCameraObjectFuncs)])(struct Sprite *);
+ 
+-#if defined(PLATFORM_VITA)
+-    RequestVoxelObjectModeSync();
+-#endif
+-
+     memcpy(callbacks, sCameraObjectFuncs, sizeof sCameraObjectFuncs);
+     callbacks[sprite->sCamera_State](sprite);
+ }
+@@ -7821,6 +7647,16 @@ static void UpdateObjectEventOffscreen(struct ObjectEvent *objectEvent, struct S
+ 
+     if ((s16)y >= DISPLAY_HEIGHT + 16 || (s16)y2 < -16)
+         objectEvent->offScreen = TRUE;
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++    {
++        objectEvent->offScreen = FALSE;
++        if ((s16)x >= DISPLAY_WIDTH + 384 || (s16)x2 < -384)
++            objectEvent->offScreen = TRUE;
++        if ((s16)y >= DISPLAY_HEIGHT + 384 || (s16)y2 < -384)
++            objectEvent->offScreen = TRUE;
++    }
++#endif
+ }
+ 
+ static void UpdateObjectEventSpriteVisibility(struct ObjectEvent *objectEvent, struct Sprite *sprite)
+@@ -9024,6 +8860,16 @@ void UpdateObjectEventSpriteInvisibility(struct Sprite *sprite, bool8 invisible)
+     x2 = x - (sprite->centerToCornerVecX >> 1);
+     y2 = y - (sprite->centerToCornerVecY >> 1);
+ 
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++    {
++        if ((s16)x >= DISPLAY_WIDTH + 384 || x2 < -384)
++            sprite->invisible = TRUE;
++        if ((s16)y >= DISPLAY_HEIGHT + 384 || y2 < -384)
++            sprite->invisible = TRUE;
++        return;
++    }
++#endif
+     if ((s16)x >= DISPLAY_WIDTH + 16 || x2 < -16)
+         sprite->invisible = TRUE;
+     if ((s16)y >= DISPLAY_HEIGHT + 16 || y2 < -16)
+@@ -9216,6 +9062,10 @@ static void DoShadowFieldEffect(struct ObjectEvent *objectEvent)
+     if (!objectEvent->hasShadow)
+     {
+         objectEvent->hasShadow = TRUE;
++#ifdef VOXEL_SUPPORTED
++        if (Platform_IsVoxelOverworldActive())
++            return;
++#endif
+         StartFieldEffectForObjectEvent(FLDEFF_SHADOW, objectEvent);
+     }
+ }
+diff --git a/src/field_camera.c b/src/field_camera.c
+index e76ba3d..5a57aee 100644
+--- a/src/field_camera.c
++++ b/src/field_camera.c
+@@ -91,8 +91,11 @@ void GetCameraOffsetWithPan(s16 *x, s16 *y)
+     *y = sFieldCameraOffset.yPixelOffset + sVerticalCameraPan + 8;
+ }
+ 
++void PortDoor_Forget(void); // field_door.c
++
+ void DrawWholeMapView(void)
+ {
++    PortDoor_Forget();
+     DrawWholeMapViewInternal(gSaveBlock1Ptr->pos.x, gSaveBlock1Ptr->pos.y, gMapHeader.mapLayout);
+     sFieldCameraOffset.copyBGToVRAM = TRUE;
+ }
+diff --git a/src/field_door.c b/src/field_door.c
+index 9d69337..99e4eed 100644
+--- a/src/field_door.c
++++ b/src/field_door.c
+@@ -360,8 +360,71 @@ static void DrawClosedDoorTiles(const struct DoorGraphics *gfx, u32 x, u32 y)
+     }
+ }
+ 
++// The door's frame, for the voxel view (voxel_entities.c): the frames below
++// are drawn on the tilemap, which that view does not show.
++static struct
++{
++    const struct DoorGraphics *gfx;
++    u16 offset;             // the frame's, 0xFFFF for the door shut
++    s16 x, y;
++    s16 twinX, twinY;       // the multi corridor's second door
++    bool8 twin;
++    s8 mapGroup, mapNum;
++} sPortDoor;
++
++// Its cell (map grid), its width in cells, and the frame it shows: 8 tiles
++// a column of the door (4bpp, the top metatile's TL TR BL BR, then the
++// bottom one's), as DrawCurrentDoorAnimFrame lays them, and the palette of
++// each of a column's 8.
++bool8 PortDoor_Get(s16 *x, s16 *y, u8 *width, const u8 **tiles, const u8 **palettes)
++{
++    if (sPortDoor.gfx == NULL || sPortDoor.offset == 0xFFFF
++     || sPortDoor.mapGroup != gSaveBlock1Ptr->location.mapGroup
++     || sPortDoor.mapNum != gSaveBlock1Ptr->location.mapNum)
++        return FALSE;
++    *x = sPortDoor.x;
++    *y = sPortDoor.y;
++    *width = sPortDoor.gfx->size == 2 ? 2 : 1;
++    *tiles = (const u8 *)sPortDoor.gfx->tiles;
++    if (*tiles == NULL)
++        return FALSE;
++    *tiles += sPortDoor.offset;
++    *palettes = sPortDoor.gfx->palettes;
++    return TRUE;
++}
++
++// The same frame drawn on a second door (ShouldUseMultiCorridorDoor).
++bool8 PortDoor_GetTwin(s16 *x, s16 *y)
++{
++    s16 ox, oy;
++    u8 width;
++    const u8 *tiles, *palettes;
++
++    if (!sPortDoor.twin || !PortDoor_Get(&ox, &oy, &width, &tiles, &palettes))
++        return FALSE;
++    *x = sPortDoor.twinX;
++    *y = sPortDoor.twinY;
++    return TRUE;
++}
++
++// The whole map view drawn again (field_camera.c) draws every door shut.
++void PortDoor_Forget(void)
++{
++    sPortDoor.gfx = NULL;
++}
++
+ static void DrawDoor(const struct DoorGraphics *gfx, const struct DoorAnimFrame *frame, u32 x, u32 y)
+ {
++    sPortDoor.gfx = gfx;
++    sPortDoor.offset = frame->offset;
++    sPortDoor.x = x;
++    sPortDoor.y = y;
++    sPortDoor.twin = ShouldUseMultiCorridorDoor();
++    sPortDoor.twinX = gSpecialVar_0x8004 + MAP_OFFSET;
++    sPortDoor.twinY = gSpecialVar_0x8005 + MAP_OFFSET;
++    sPortDoor.mapGroup = gSaveBlock1Ptr->location.mapGroup;
++    sPortDoor.mapNum = gSaveBlock1Ptr->location.mapNum;
++
+     if (frame->offset == 0xFFFF)
+     {
+         DrawClosedDoorTiles(gfx, x, y);
+diff --git a/src/field_effect_helpers.c b/src/field_effect_helpers.c
+index 4a488de..9c995af 100644
+--- a/src/field_effect_helpers.c
++++ b/src/field_effect_helpers.c
+@@ -10,6 +10,7 @@
+ #include "fieldmap.h"
+ #include "gpu_regs.h"
+ #include "metatile_behavior.h"
++#include "platform.h"
+ #include "sound.h"
+ #include "sprite.h"
+ #include "trig.h"
+@@ -257,6 +258,14 @@ void UpdateShadowFieldEffect(struct Sprite *sprite)
+ {
+     u8 objectEventId;
+ 
++#ifdef VOXEL_SUPPORTED
++    if (Platform_IsVoxelOverworldActive())
++    {
++        FieldEffectStop(sprite, FLDEFF_SHADOW);
++        return;
++    }
++#endif
++
+     if (TryGetObjectEventIdByLocalIdAndMap(sprite->sLocalId, sprite->sMapNum, sprite->sMapGroup, &objectEventId))
+     {
+         FieldEffectStop(sprite, FLDEFF_SHADOW);
+diff --git a/src/music_player.c b/src/music_player.c
+index ab0c0d5..4a9b31d 100644
+--- a/src/music_player.c
++++ b/src/music_player.c
+@@ -767,7 +767,11 @@ void m4aSoundVSync(void)
+         }
+ 
+ #if defined(__ARM_NEON) || defined(__ARM_NEON__)
++#ifdef PLATFORM_VITA
++        const float32x4_t vScale = vdupq_n_f32(0.40f);
++#else
+         const float32x4_t vScale = vdupq_n_f32(0.125f);
++#endif
+         const float32x4_t vOne = vdupq_n_f32(1.0f);
+         const float32x4_t vNegOne = vdupq_n_f32(-1.0f);
+         const float32x4_t vZero = vdupq_n_f32(0.0f);
+@@ -794,7 +798,11 @@ void m4aSoundVSync(void)
+                 m4aSample = 0.0f;
+             if (cgbSample != cgbSample)
+                 cgbSample = 0.0f;
++#ifdef PLATFORM_VITA
++            float sample = (m4aSample + cgbSample) * 0.40f;
++#else
+             float sample = (m4aSample + cgbSample) * 0.125f;
++#endif
+             if (sample > 1.0f)
+                 sample = 1.0f;
+             else if (sample < -1.0f)
+@@ -813,6 +821,8 @@ void m4aSoundVSync(void)
+ 
+ #ifdef __ANDROID__
+             float sample = (m4aSample + cgbSample) * 0.5f;
++#elif defined(PLATFORM_VITA)
++            float sample = (m4aSample + cgbSample) * 0.40f;
+ #else
+             float sample = (m4aSample + cgbSample) * 0.125f;
+ #endif
+diff --git a/src/overworld.c b/src/overworld.c
+index dc8028e..9d17a5c 100644
+--- a/src/overworld.c
++++ b/src/overworld.c
+@@ -99,6 +99,8 @@ struct CableClubPlayer
+ extern const struct MapLayout *const gMapLayouts[];
+ extern const struct MapHeader *const *const gMapGroups[];
+ 
++volatile uint32_t sMapMutationLock = 0;
++
+ static void Overworld_ResetStateAfterWhiteOut(void);
+ static void CB2_ReturnToFieldLocal(void);
+ static void CB2_ReturnToFieldLink(void);
+@@ -798,6 +800,7 @@ void LoadMapFromCameraTransition(u8 mapGroup, u8 mapNum)
+ {
+     s32 paletteIndex;
+ 
++    sMapMutationLock = 1;
+     SetWarpDestination(mapGroup, mapNum, WARP_ID_NONE, -1, -1);
+ 
+     // Dont transition map music between BF Outside West/East
+@@ -1587,6 +1590,7 @@ void CB2_WhiteOut(void)
+ 
+ void CB2_LoadMap(void)
+ {
++    sMapMutationLock = 1;
+     FieldClearVBlankHBlankCallbacks();
+     ScriptContext_Init();
+     UnlockPlayerFieldControls();
+@@ -1598,6 +1602,7 @@ void CB2_LoadMap(void)
+ static void CB2_LoadMap2(void)
+ {
+     DoMapLoadLoop(&gMain.state);
++    sMapMutationLock = 0;
+     SetFieldVBlankCallback();
+     SetMainCallback1(CB1_Overworld);
+     SetMainCallback2(CB2_Overworld);
+@@ -1651,6 +1656,11 @@ void CB2_ReturnToField(void)
+     }
+ }
+ 
++bool8 Overworld_IsReturningToField(void)
++{
++    return (gMain.callback2 == CB2_ReturnToFieldLocal || gMain.callback2 == CB2_ReturnToField);
++}
++
+ static void CB2_ReturnToFieldLocal(void)
+ {
+     if (ReturnToFieldLocal(&gMain.state))
+@@ -2093,7 +2103,9 @@ static bool32 ReturnToFieldLink(u8 *state)
+ 
+ static void DoMapLoadLoop(u8 *state)
+ {
++    sMapMutationLock = 1;
+     while (!LoadMapInStepsLocal(state, FALSE));
++    sMapMutationLock = 0;
+ }
+ 
+ static void ResetMirageTowerAndSaveBlockPtrs(void)
+diff --git a/src/shop.c b/src/shop.c
+index 338e067..4903ebe 100644
+--- a/src/shop.c
++++ b/src/shop.c
+@@ -23,6 +23,7 @@
+ #include "money.h"
+ #include "overworld.h"
+ #include "palette.h"
++#include "platform.h"
+ #include "party_menu.h"
+ #include "scanline_effect.h"
+ #include "script.h"
+@@ -115,6 +116,7 @@ EWRAM_DATA struct ItemSlot gMartPurchaseHistory[SMARTSHOPPER_NUM_ITEMS] = {0};
+ static void Task_ShopMenu(u8 taskId);
+ static void Task_HandleShopMenuQuit(u8 taskId);
+ static void CB2_InitBuyMenu(void);
++static void CB2_BuyMenu(void);
+ static void Task_GoToBuyOrSellMenu(u8 taskId);
+ static void MapPostLoadHook_ReturnToShopMenu(void);
+ static void Task_ReturnToShopMenu(u8 taskId);
+@@ -418,6 +420,14 @@ static void Task_HandleShopMenuBuy(u8 taskId)
+     s16 *data = gTasks[taskId].data;
+     tCallbackHi = (u32)CB2_InitBuyMenu >> 16;
+     tCallbackLo = (u32)CB2_InitBuyMenu;
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++    {
++        DestroyTask(taskId);
++        SetMainCallback2(CB2_InitBuyMenu);
++        return;
++    }
++#endif
+     gTasks[taskId].func = Task_GoToBuyOrSellMenu;
+     FadeScreen(FADE_TO_BLACK, 0);
+ }
+@@ -461,10 +471,20 @@ static void Task_GoToBuyOrSellMenu(u8 taskId)
+ 
+ static void MapPostLoadHook_ReturnToShopMenu(void)
+ {
++#ifdef VOXEL_SUPPORTED
++    if (!Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++        FadeInFromBlack();
++#else
+     FadeInFromBlack();
++#endif
+     CreateTask(Task_ReturnToShopMenu, 8);
+ }
+ 
++bool8 Shop_IsBuyMenuActive(void)
++{
++    return (gMain.callback2 == CB2_BuyMenu || gMain.callback2 == CB2_InitBuyMenu);
++}
++
+ static void Task_ReturnToShopMenu(u8 taskId)
+ {
+     if (IsWeatherNotFadingIn() == TRUE)
+@@ -537,8 +557,16 @@ static void CB2_InitBuyMenu(void)
+         BuyMenuAddScrollIndicatorArrows();
+         taskId = CreateTask(Task_BuyMenu, 8);
+         gTasks[taskId].tListTaskId = ListMenuInit(&gMultiuseListMenuTemplate, 0, 0);
++#ifdef VOXEL_SUPPORTED
++        if (!Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++        {
++            BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
++            BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
++        }
++#else
+         BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
+         BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
++#endif
+         SetVBlankCallback(VBlankCB_BuyMenu);
+         SetMainCallback2(CB2_BuyMenu);
+         break;
+@@ -780,6 +808,10 @@ static void BuyMenuDrawGraphics(void)
+ 
+ static void BuyMenuDrawMapGraphics(void)
+ {
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++        return;
++#endif
+     BuyMenuCollectObjectEventData();
+     BuyMenuDrawObjectEvents();
+     BuyMenuDrawMapBg();
+@@ -897,6 +929,10 @@ static void BuyMenuCollectObjectEventData(void)
+ 
+ static void BuyMenuDrawObjectEvents(void)
+ {
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++        return;
++#endif
+     u8 i;
+     u8 spriteId;
+     const struct ObjectEventGraphicsInfo *graphicsInfo;
+@@ -1193,6 +1229,16 @@ static void BuyMenuPrintItemQuantityAndPrice(u8 taskId)
+ static void ExitBuyMenu(u8 taskId)
+ {
+     gFieldCallback = MapPostLoadHook_ReturnToShopMenu;
++#ifdef VOXEL_SUPPORTED
++    if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D))
++    {
++        RemoveMoneyLabelObject();
++        BuyMenuFreeMemory();
++        SetMainCallback2(CB2_ReturnToField);
++        DestroyTask(taskId);
++        return;
++    }
++#endif
+     BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
+     gTasks[taskId].func = Task_ExitBuyMenu;
+ }
+diff --git a/src/sound_mixer.c b/src/sound_mixer.c
+index 44ea1e2..567900c 100644
+--- a/src/sound_mixer.c
++++ b/src/sound_mixer.c
+@@ -241,8 +241,48 @@ static inline void GenerateAudio(struct SoundMixerState *mixer, struct MixerSour
+     else
+ #endif
+     if (chan->type & 8) {
++        if (envR == 0 && envL == 0) {
++            if (samplesLeftInWav > (s32)samplesPerFrame) {
++                chan->ct = samplesLeftInWav - (s32)samplesPerFrame;
++                chan->current = current + samplesPerFrame;
++            } else if (loopLen != 0) {
++                s32 overshoot = ((s32)samplesPerFrame - samplesLeftInWav) % loopLen;
++                chan->ct = loopLen - overshoot;
++                chan->current = loopStart + overshoot;
++            } else {
++                chan->status = 0;
++            }
++            return;
++        }
++
+         const float scaleR = (float)envR * (1.0f / 32768.0f);
+         const float scaleL = (float)envL * (1.0f / 32768.0f);
++        if (samplesLeftInWav > (s32)samplesPerFrame) {
++            u16 i = 0;
++            for (; i + 4 <= samplesPerFrame; i += 4, current += 4, outBuffer += 8) {
++                float c0 = (float)current[0];
++                float c1 = (float)current[1];
++                float c2 = (float)current[2];
++                float c3 = (float)current[3];
++                outBuffer[0] += c0 * scaleL;
++                outBuffer[1] += c0 * scaleR;
++                outBuffer[2] += c1 * scaleL;
++                outBuffer[3] += c1 * scaleR;
++                outBuffer[4] += c2 * scaleL;
++                outBuffer[5] += c2 * scaleR;
++                outBuffer[6] += c3 * scaleL;
++                outBuffer[7] += c3 * scaleR;
++            }
++            for (; i < samplesPerFrame; i++, outBuffer += 2) {
++                float c = (float)*(current++);
++                outBuffer[1] += c * scaleR;
++                outBuffer[0] += c * scaleL;
++            }
++            chan->ct = samplesLeftInWav - (s32)samplesPerFrame;
++            chan->current = current;
++            return;
++        }
++
+         for (u16 i = 0; i < samplesPerFrame; i++, outBuffer+=2) {
+             sf8 c = *(current++);
+             
+@@ -264,6 +304,67 @@ static inline void GenerateAudio(struct SoundMixerState *mixer, struct MixerSour
+     } else {
+         float finePos = chan->fw;
+         float romSamplesPerOutputSample = chan->freq * sampleRateReciprocal;
++
++        if (__builtin_expect(finePos >= 0.0f && finePos < 1.0f
++                          && romSamplesPerOutputSample >= 0.0f && romSamplesPerOutputSample < 128.0f, 1)) {
++            const uint32_t kFracBits = 23u;
++            const uint32_t kFracMask = (1u << kFracBits) - 1u;
++            const float kInvFracScale = 1.0f / (float)(1u << kFracBits);
++            uint32_t phase = (uint32_t)(finePos * (float)(1u << kFracBits));
++            uint32_t step = (uint32_t)(romSamplesPerOutputSample * (float)(1u << kFracBits));
++            uint64_t endPos = (uint64_t)phase + (uint64_t)samplesPerFrame * (uint64_t)step;
++            uint32_t totalAdvance = (uint32_t)(endPos >> kFracBits);
++
++            if (envR == 0 && envL == 0) {
++                s32 rem = samplesLeftInWav - (s32)totalAdvance;
++                if (rem > 0) {
++                    chan->fw = (float)(endPos & kFracMask) * kInvFracScale;
++                    chan->ct = rem;
++                    chan->current = current + totalAdvance;
++                } else if (loopLen != 0) {
++                    u32 overshoot = (u32)(-rem) % (u32)loopLen;
++                    chan->fw = (float)(endPos & kFracMask) * kInvFracScale;
++                    chan->ct = loopLen - (s32)overshoot;
++                    chan->current = loopStart + overshoot;
++                } else {
++                    chan->status = 0;
++                }
++                return;
++            }
++
++            if (samplesLeftInWav > (s32)totalAdvance) {
++                const float scaleR = (float)envR * (1.0f / 32768.0f);
++                const float scaleL = (float)envL * (1.0f / 32768.0f);
++                const s8 *src = current;
++                s32 b = src[0];
++                s32 m = src[1] - b;
++                float bF = (float)b;
++                float mScaled = (float)m * kInvFracScale;
++
++                for (u16 i = 0; i < samplesPerFrame; i++, outBuffer += 2) {
++                    float sample = (float)(int32_t)phase * mScaled + bF;
++                    outBuffer[1] += sample * scaleR;
++                    outBuffer[0] += sample * scaleL;
++
++                    phase += step;
++                    uint32_t coarse = phase >> kFracBits;
++                    if (coarse != 0) {
++                        phase &= kFracMask;
++                        src += coarse;
++                        b = src[0];
++                        m = src[1] - b;
++                        bF = (float)b;
++                        mScaled = (float)m * kInvFracScale;
++                    }
++                }
++
++                chan->fw = (float)phase * kInvFracScale;
++                chan->ct = samplesLeftInWav - (s32)totalAdvance;
++                chan->current = (s8 *)src;
++                return;
++            }
++        }
++
+         const float scaleR = (float)envR * (1.0f / 32768.0f);
+         const float scaleL = (float)envL * (1.0f / 32768.0f);
+ 
+diff --git a/src/sprite.c b/src/sprite.c
+index 708a3e7..ee89e2d 100644
+--- a/src/sprite.c
++++ b/src/sprite.c
+@@ -479,16 +479,38 @@ void CopyMatricesToOamBuffer(void)
+     }
+ }
+ 
++void AddSpritesToOamBuffer(void);
++
++#ifndef PORT_MAX_SPRITES_AT_ONCE
++EWRAM_DATA u32 gScreenOam[4] = {0};
++#endif
++
++void AddSpritesToOamBuffer_Unused(void);
++
++#undef AddSpritesToOamBuffer_Unused
+ void AddSpritesToOamBuffer(void)
+ {
+     u8 i = 0;
+     u8 oamIndex = 0;
+ 
++    memset(gScreenOam, 0, sizeof(gScreenOam));
++
+     while (i < MAX_SPRITES)
+     {
+         struct Sprite *sprite = &gSprites[sSpriteOrder[i]];
+-        if (sprite->inUse && !sprite->invisible && AddSpriteToOamBuffer(sprite, &oamIndex))
+-            return;
++        if (sprite->inUse && !sprite->invisible)
++        {
++            u8 prevOam = oamIndex;
++            bool8 full = AddSpriteToOamBuffer(sprite, &oamIndex);
++            if (!sprite->coordOffsetEnabled)
++            {
++                u8 k;
++                for (k = prevOam; k < oamIndex; k++)
++                    gScreenOam[k >> 5] |= (1u << (k & 31));
++            }
++            if (full)
++                return;
++        }
+         i++;
+     }
+ 
+diff --git a/src/tileset_anims.c b/src/tileset_anims.c
+index 595ba08..6be2dfd 100644
+--- a/src/tileset_anims.c
++++ b/src/tileset_anims.c
+@@ -566,7 +566,15 @@ void TransferTilesetAnimsBuffer(void)
+     int i;
+ 
+     for (i = 0; i < sTilesetDMA3TransferBufferSize; i ++)
++    {
+         DmaCopy16(3, sTilesetDMA3TransferBuffer[i].src, sTilesetDMA3TransferBuffer[i].dest, sTilesetDMA3TransferBuffer[i].size);
++#if defined(VOXEL_SUPPORTED) && (defined(PLATFORM_VITA) || defined(PLATFORM_SDL2))
++        {
++            extern void VoxelRenderer_NotifyTilesetAnimWrite(const void *dest, unsigned bytes);
++            VoxelRenderer_NotifyTilesetAnimWrite(sTilesetDMA3TransferBuffer[i].dest, sTilesetDMA3TransferBuffer[i].size);
++        }
++#endif
++    }
+ 
+     sTilesetDMA3TransferBufferSize = 0;
+ }

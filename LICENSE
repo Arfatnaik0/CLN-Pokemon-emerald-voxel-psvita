@@ -1,0 +1,100 @@
+This repository contains multiple components governed by distinct licenses. No single permissive grant overrides upstream ShareAlike, copyleft, or intellectual-property rights. See NOTICE.md for full provenance and attribution details.
+
+================================================================================
+1. Original PS Vita Port Code & Multiplatform Port Modifications — MIT License
+================================================================================
+
+(A) Original PS Vita Port Code, Optimizations, Hooks, Tests & Scripts:
+Copyright (c) 2026 Pokémon Emerald Voxel PS Vita contributors
+
+Applies to original PS Vita port modifications and tooling authored for this
+repository, specifically:
+- port/vita/* (CMake build, Vita scripts, LiveArea generators/verifiers, SDL2 patch)
+- port/include/platform/* (vita_perf.h, vita_perf_rolling.h, frame_pacing.h, etc.)
+- port/src/platform/vita/*, port/src/platform/vita_perf.c,
+  port/src/platform/vita_thread_affinity.*, port/src/platform/gba_easy_draw_workers.*
+- PS Vita compatibility shims under port/src/platform/voxel/
+  (3ds_log.h, 3ds_platform.h, 3ds_video.h, port_log.h, port_platform.h,
+  voxel_file.h, voxel_renderer.h, voxel_vita_bridge.c)
+- Vita-specific additions in port/src/platform/sdl2.c, gba_easy_draw.c, cgb_audio.c
+- Authored `+` addition hunks in port/patches/upstream-vita-hooks.patch (excluding
+  upstream context and replaced `-` lines covered by Section 3)
+- port/tests/platform/*, port/tools/extract_voxel_layout_models.py, scripts/*,
+  README.md, ARCHITECTURE.md
+
+(B) Upstream pokeemerald-multiplatform Portions:
+Copyright (c) 2026 pokeemerald-multiplatform contributors
+
+Portions of port/src/platform/ (such as the base sdl2.c, gba_easy_draw.c,
+and cgb_audio.c abstractions, plus earlier voxel ancestry noted below) derive
+from pokeemerald-multiplatform ("Port Modifications").
+
+MIT License Grant (applying expressly to BOTH Section 1(A) and Section 1(B) above):
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+================================================================================
+2. Voxel 3D Diorama Subsystem (ZallaxDev/emerald-3ds Derived) — CC BY-NC-SA 4.0
+================================================================================
+
+The 3D diorama subsystem adapted from ZallaxDev/emerald-3ds (>= 0.5.0) is
+licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License (CC BY-NC-SA 4.0):
+
+  https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+Specifically:
+- Derived from ZallaxDev/emerald-3ds (>= 0.5.0) and ported to PS Vita:
+  3ds_field_view.*, voxel_arena.*, voxel_battle.*, voxel_building.*,
+  voxel_grade.*, voxel_lighting.*, voxel_regions.*, voxel_relief.*,
+  voxel_sign.*, voxel_sprite_slots.*, voxel_swoop.*, voxel_tree.*,
+  voxel_tuning.h, voxel_unswizzle.h, voxel_renderer.c, and
+  port/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md.
+- Mixed ancestry (originally derived from MIT-licensed pokeemerald-multiplatform
+  scaffolding, rewritten/expanded under CC BY-NC-SA 4.0 in emerald-3ds >= 0.5.0,
+  and adapted here under CC BY-NC-SA 4.0):
+  voxel_world.*, voxel_camera.*, voxel_mesh_builder.*, voxel_atlas.*, and
+  voxel_entities.*.
+
+Under CC BY-NC-SA 4.0:
+- Attribution: Retain credit to ZallaxDev/emerald-3ds and see NOTICE.md.
+- NonCommercial: You may not use this material for commercial purposes.
+- ShareAlike: If you remix, transform, or build upon this material, you must
+  distribute your contributions under the same CC BY-NC-SA 4.0 license.
+
+================================================================================
+3. Scope & Exclusions
+================================================================================
+
+Consistent with upstream pokeemerald-multiplatform Scope exclusions, nothing in
+this LICENSE grants rights to, or relicenses:
+- The upstream pret/pokeemerald decompilation or contributions from its
+  authors, upstream context (` `) and removed (`-`) lines in
+  port/patches/upstream-vita-hooks.patch (whose newly authored `+` hook
+  additions only are covered by Section 1(A)), or unmodified upstream platform
+  modules (such as bios.c containing VBA-M GPL-2.0 and mGBA MPL-2.0 code,
+  supplied locally by the developer's checkout).
+- Pokémon, Pokémon Emerald, Pokémon characters, names, sprites, maps, graphics,
+  audio, story, or other copyrighted or trademarked material owned by
+  Nintendo, Creatures Inc., GAME FREAK inc., or other respective owners.
+- External dependencies linked at build time:
+  - vitaGL (Rinnegatamante/vitaGL): GNU Lesser General Public License v3.0 or
+    later (LGPL-3.0-or-later), with GPL-3.0 components in the upstream project.
+  - SDL2: zlib License.
+  - VitaSDK: respective toolchain licenses (MIT / BSD / GPL).

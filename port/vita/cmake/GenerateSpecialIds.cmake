@@ -1,0 +1,13 @@
+if(NOT DEFINED SOURCE OR NOT DEFINED OUTPUT)
+    message(FATAL_ERROR "GenerateSpecialIds.cmake requires SOURCE and OUTPUT")
+endif()
+
+file(STRINGS "${SOURCE}" SPECIAL_LINES)
+set(SPECIAL_INDEX 0)
+file(WRITE "${OUTPUT}" "")
+foreach(LINE IN LISTS SPECIAL_LINES)
+    if(LINE MATCHES "^[ \t]*def_special[ \t]+([A-Za-z0-9_]+)")
+        file(APPEND "${OUTPUT}" ".set SPECIAL_${CMAKE_MATCH_1}, ${SPECIAL_INDEX}\n")
+        math(EXPR SPECIAL_INDEX "${SPECIAL_INDEX} + 1")
+    endif()
+endforeach()

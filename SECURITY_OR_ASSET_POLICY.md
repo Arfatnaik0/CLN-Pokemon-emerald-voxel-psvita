@@ -1,0 +1,9 @@
+# Data and asset policy
+
+This is a data-free tool repository. A private GitHub repository is still a repository distribution: do not commit ROMs, game data, source snapshots, extracted assets, generated port data, saves, device logs, screenshots, photos, or built VPK/ELF/SELF files. Do not force-add ignored files. Keep source, build glue, documentation, and synthetic fixtures free of game-derived material.
+
+The planned Python/GUI workflow processes a user's own legally obtained dump on that user's machine. It should verify the input hash, perform all extraction and conversion locally, and write generated port data under ignored `local-output/` and build the resulting VPK under ignored `build/`. Do not upload the dump, transformed data, hashes tied to a private dump, or device data. Hash verification checks integrity; it does not change the provenance or distribution limits of the input.
+
+The current local test VPKs embed copyrighted game assets. They are private hardware-test artifacts only and must never be committed or distributed as a final output. Keep their VPKs, ELFs, maps, generated assets, logs, and test hash records local. The existing worktree has such build output under `pokeemerald/build/` and `vita-spike/build/`; the ignore rules protect these paths but do not delete files or remove artifacts from Git history.
+
+Before adding a file, check its origin and whether it contains game-derived or personal/device data. `.gitignore` and `scripts/preflight_data_free.py` are safeguards, not a substitute for that review. Run the path-only preflight with `python3 scripts/preflight_data_free.py`. If a future GUI needs an original media file, verify its ownership and provenance, then add a narrow ignore exception and the exact lowercase path to `REVIEWED_SAFE_MEDIA_PATHS` in the script. Never make a broad exception for a dump, source snapshot, or generated output.

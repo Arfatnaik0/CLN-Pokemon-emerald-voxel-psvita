@@ -1,0 +1,84 @@
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -196,6 +196,70 @@
+     return RESAMPLER_SAMPLES_PER_ZERO_CROSSING;
+ }
+ 
++/* Pokémon Emerald Vita specialization of SDL 2.30.7's resampling kernel.
++ * Same bandlimited interpolation and stream padding semantics as SDL. */
++#if defined(POKEMERALD_VITA_RESAMPLE)
++#define POKEVITA_AUDIO_PHASES 735
++#define POKEVITA_AUDIO_TAPS (RESAMPLER_ZERO_CROSSINGS + 1)
++typedef struct {
++    Uint16 src;
++    Uint8 left, right;
++    float lc[POKEVITA_AUDIO_TAPS], rc[POKEVITA_AUDIO_TAPS];
++} PokeVitaAudioPhase;
++static PokeVitaAudioPhase sPokeVitaPhases[POKEVITA_AUDIO_PHASES];
++static SDL_SpinLock sPokeVitaPhasesLock;
++static SDL_bool sPokeVitaPhasesReady;
++static void PokeVitaInitAudioPhases(void)
++{
++    SDL_AtomicLock(&sPokeVitaPhasesLock);
++    if (!sPokeVitaPhasesReady) {
++        for (int i = 0; i < POKEVITA_AUDIO_PHASES; ++i) {
++            PokeVitaAudioPhase *p = &sPokeVitaPhases[i];
++            const int fraction = (i * 701) % 735;
++            const float f = (float)fraction / 735.0f, g = 1.0f - f;
++            const int l = fraction * RESAMPLER_SAMPLES_PER_ZERO_CROSSING / 735;
++            const int r = (735 - fraction) * RESAMPLER_SAMPLES_PER_ZERO_CROSSING / 735;
++            p->src = (Uint16)((i * 701) / 735);
++            for (int k = l; k < RESAMPLER_FILTER_SIZE; k += RESAMPLER_SAMPLES_PER_ZERO_CROSSING)
++                p->lc[p->left++] = ResamplerFilter[k] + f * ResamplerFilterDifference[k];
++            for (int k = r; k < RESAMPLER_FILTER_SIZE; k += RESAMPLER_SAMPLES_PER_ZERO_CROSSING)
++                p->rc[p->right++] = ResamplerFilter[k] + g * ResamplerFilterDifference[k];
++        }
++        sPokeVitaPhasesReady = SDL_TRUE;
++    }
++    SDL_AtomicUnlock(&sPokeVitaPhasesLock);
++}
++static int PokeVitaResampleStereo(const float *lpadding, const float *rpadding,
++                                  const float *inbuf, int inbuflen,
++                                  float *outbuf, int outbuflen)
++{
++    const int inframes = inbuflen / (2 * (int)sizeof(float));
++    const int wanted = (int)((Sint64)inframes * 44100 / 42060);
++    const int limit = outbuflen / (2 * (int)sizeof(float));
++    const int outframes = SDL_min(wanted, limit);
++    int phase = 0, base = 0;
++    PokeVitaInitAudioPhases();
++    for (int i = 0; i < outframes; ++i) {
++        const PokeVitaAudioPhase *p = &sPokeVitaPhases[phase];
++        const int src = base + p->src;
++        float left = 0.0f, right = 0.0f;
++        for (int j = 0; j < p->left; ++j) {
++            const int frame = src - j;
++            const float *s = frame < 0 ? lpadding + (RESAMPLER_SAMPLES_PER_ZERO_CROSSING + frame) * 2 : inbuf + frame * 2;
++            left += s[0] * p->lc[j]; right += s[1] * p->lc[j];
++        }
++        for (int j = 0; j < p->right; ++j) {
++            const int frame = src + 1 + j;
++            const float *s = frame >= inframes ? rpadding + (frame - inframes) * 2 : inbuf + frame * 2;
++            left += s[0] * p->rc[j]; right += s[1] * p->rc[j];
++        }
++        outbuf[i * 2] = left; outbuf[i * 2 + 1] = right;
++        if (++phase == POKEVITA_AUDIO_PHASES) { phase = 0; base += 701; }
++    }
++    return outframes * 2 * sizeof(float);
++}
++#endif
++
+ /* lpadding and rpadding are expected to be buffers of (ResamplePadding(inrate, outrate) * chans * sizeof(float)) bytes. */
+ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrate,
+                              const float *lpadding, const float *rpadding,
+@@ -208,6 +272,10 @@
+      * assumed to be non-negative so that division rounds by truncation and
+      * modulo is always non-negative. Note that the operator order is important
+      * for these integer divisions. */
++#if defined(POKEMERALD_VITA_RESAMPLE)
++    if (chans == 2 && inrate == 42060 && outrate == 44100)
++        return PokeVitaResampleStereo(lpadding, rpadding, inbuf, inbuflen, outbuf, outbuflen);
++#endif
+     const int paddinglen = ResamplerPadding(inrate, outrate);
+     const int framelen = chans * (int)sizeof(float);
+     const int inframes = inbuflen / framelen;
