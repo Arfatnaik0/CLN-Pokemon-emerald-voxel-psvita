@@ -164,7 +164,7 @@ index 2bb9789..b1043a3 100644
      DrawDialogueFrame(0, TRUE);
      InitDecorationActionsWindow();
 diff --git a/src/event_object_movement.c b/src/event_object_movement.c
-index 22c1dce..ace4d30 100644
+index 22c1dce..284b83c 100644
 --- a/src/event_object_movement.c
 +++ b/src/event_object_movement.c
 @@ -8,11 +8,6 @@
@@ -439,7 +439,7 @@ index 22c1dce..ace4d30 100644
  
          if (CurrentBattlePyramidLocation() != PYRAMID_LOCATION_NONE)
              objectCount = GetNumBattlePyramidObjectEvents();
-@@ -1829,151 +1807,109 @@ void TrySpawnObjectEvents(s16 cameraX, s16 cameraY)
+@@ -1829,151 +1807,53 @@ void TrySpawnObjectEvents(s16 cameraX, s16 cameraY)
          if (objectCount > OBJECT_EVENT_TEMPLATES_COUNT)
              objectCount = OBJECT_EVENT_TEMPLATES_COUNT;
  
@@ -530,11 +530,7 @@ index 22c1dce..ace4d30 100644
              {
 -                struct ObjectEventTemplate *template =
 -                    &gSaveBlock1Ptr->objectEventTemplates[candidates[i].templateIndex];
-+                if (!HasFreeObjectEventSlot() && !EvictFurthestObjectEvent(score[i], left, right, top, bottom))
-+                    break;
-+                TrySpawnObjectEventTemplate(&gSaveBlock1Ptr->objectEventTemplates[order[i]], mapNum, mapGroup, cameraX, cameraY);
-+            }
- 
+-
 -                if (VoxelObjectWindow_CanSpawnOuterActor(freeSlots))
 -                {
 -                    if (TrySpawnObjectEventTemplate(template, gSaveBlock1Ptr->location.mapNum,
@@ -543,10 +539,7 @@ index 22c1dce..ace4d30 100644
 -                        freeSlots--;
 -                }
 -                else
-+            if (Platform_GetSetting(PLATFORM_SETTING_VOXEL_3D) && gMapHeader.connections != NULL)
-+            {
-+                for (int c = 0; c < gMapHeader.connections->count; c++)
-                 {
+-                {
 -                    /* Slots are exhausted down to reserved threshold. If this candidate is
 -                     * closer to the player than an existing active outer non-scripted object,
 -                     * displace that furthest object to make room for this closer one.
@@ -558,51 +551,14 @@ index 22c1dce..ace4d30 100644
 -                    u8 k;
 -
 -                    for (k = 0; k < OBJECT_EVENTS_COUNT; k++)
-+                    const struct MapConnection *conn = &gMapHeader.connections->connections[c];
-+                    const struct MapHeader *connHeader = Overworld_GetMapHeaderByGroupAndId(conn->mapGroup, conn->mapNum);
-+                    if (connHeader == NULL || connHeader->events == NULL || connHeader->events->objectEvents == NULL)
-+                        continue;
-+
-+                    s16 connOffX = 0, connOffY = 0;
-+                    if (conn->direction == CONNECTION_SOUTH)
-                     {
+-                    {
 -                        struct ObjectEvent *obj = &gObjectEvents[k];
 -                        s32 odx, ody;
 -                        u32 odist;
-+                        connOffX = (s16)conn->offset;
-+                        connOffY = (s16)gMapHeader.mapLayout->height;
-+                    }
-+                    else if (conn->direction == CONNECTION_NORTH)
-+                    {
-+                        connOffX = (s16)conn->offset;
-+                        connOffY = (s16)-connHeader->mapLayout->height;
-+                    }
-+                    else if (conn->direction == CONNECTION_WEST)
-+                    {
-+                        connOffX = (s16)-connHeader->mapLayout->width;
-+                        connOffY = (s16)conn->offset;
-+                    }
-+                    else if (conn->direction == CONNECTION_EAST)
-+                    {
-+                        connOffX = (s16)gMapHeader.mapLayout->width;
-+                        connOffY = (s16)conn->offset;
-+                    }
-+                    else
-+                    {
-+                        continue;
-+                    }
-+
-+                    for (u8 t = 0; t < connHeader->events->objectEventCount; t++)
-+                    {
-+                        const struct ObjectEventTemplate *srcTemp = &connHeader->events->objectEvents[t];
-+                        s16 npcX = (s16)(srcTemp->x + connOffX + MAP_OFFSET);
-+                        s16 npcY = (s16)(srcTemp->y + connOffY + MAP_OFFSET);
- 
+-
 -                        if (!CanDisplaceObjectEvent(k, left, right, top, bottom))
-+                        if (!IsObjectEventInViewBounds(npcX, npcY, left, right, top, bottom) || FlagGet(srcTemp->flagId)
-+                         || GetObjectEventIdByLocalIdAndMap(srcTemp->localId, conn->mapNum, conn->mapGroup) != OBJECT_EVENTS_COUNT)
-                             continue;
- 
+-                            continue;
+-
 -                        odx = obj->currentCoords.x - playerX;
 -                        ody = obj->currentCoords.y - playerY;
 -                        odist = (u32)(odx * odx + ody * ody);
@@ -612,9 +568,7 @@ index 22c1dce..ace4d30 100644
 -                            furthestObjId = k;
 -                        }
 -                    }
-+                        if (!HasFreeObjectEventSlot() && !EvictFurthestObjectEvent(ObjectEventViewScore(npcX, npcY), left, right, top, bottom))
-+                            break;
- 
+-
 -                    if (furthestObjId != OBJECT_EVENTS_COUNT && candidates[i].distanceSquared < furthestDistSq)
 -                    {
 -                        u8 newObjId;
@@ -650,12 +604,11 @@ index 22c1dce..ace4d30 100644
 -                                gObjectEvents[furthestObjId] = savedVictim;
 -                            }
 -                        }
-+                        struct ObjectEventTemplate shiftedTemp = *srcTemp;
-+                        shiftedTemp.x = (s16)(srcTemp->x + connOffX);
-+                        shiftedTemp.y = (s16)(srcTemp->y + connOffY);
-+                        TrySpawnObjectEventTemplate(&shiftedTemp, conn->mapNum, conn->mapGroup, cameraX, cameraY);
-                     }
-                 }
+-                    }
+-                }
++                if (!HasFreeObjectEventSlot() && !EvictFurthestObjectEvent(score[i], left, right, top, bottom))
++                    break;
++                TrySpawnObjectEventTemplate(&gSaveBlock1Ptr->objectEventTemplates[order[i]], mapNum, mapGroup, cameraX, cameraY);
              }
          }
 +#else
@@ -672,7 +625,7 @@ index 22c1dce..ace4d30 100644
  #endif
      }
  }
-@@ -1982,9 +1918,6 @@ void RemoveObjectEventsOutsideView(void)
+@@ -1982,9 +1862,6 @@ void RemoveObjectEventsOutsideView(void)
  {
      u8 i, j;
      bool8 isActiveLinkPlayer;
@@ -682,7 +635,7 @@ index 22c1dce..ace4d30 100644
  
      for (i = 0; i < OBJECT_EVENTS_COUNT; i++)
      {
-@@ -1999,18 +1932,9 @@ void RemoveObjectEventsOutsideView(void)
+@@ -1999,18 +1876,9 @@ void RemoveObjectEventsOutsideView(void)
  
              if (objectEvent->active && !objectEvent->isPlayer)
              {
@@ -703,7 +656,7 @@ index 22c1dce..ace4d30 100644
  #endif
                  RemoveObjectEventIfOutsideView(objectEvent);
              }
-@@ -2024,11 +1948,12 @@ static void RemoveObjectEventIfOutsideView(struct ObjectEvent *objectEvent)
+@@ -2024,11 +1892,12 @@ static void RemoveObjectEventIfOutsideView(struct ObjectEvent *objectEvent)
  
      GetObjectEventViewBounds(&left, &right, &top, &bottom);
  
@@ -721,7 +674,7 @@ index 22c1dce..ace4d30 100644
          return;
      RemoveObjectEvent(objectEvent);
  }
-@@ -2554,106 +2479,11 @@ static bool8 ObjectEventDoesElevationMatch(struct ObjectEvent *objectEvent, u8 e
+@@ -2554,106 +2423,11 @@ static bool8 ObjectEventDoesElevationMatch(struct ObjectEvent *objectEvent, u8 e
      return TRUE;
  }
  
@@ -828,7 +781,7 @@ index 22c1dce..ace4d30 100644
  }
  
  // The "CameraObject" functions below are responsible for an invisible sprite
-@@ -2672,10 +2502,6 @@ static void SpriteCB_CameraObject(struct Sprite *sprite)
+@@ -2672,10 +2446,6 @@ static void SpriteCB_CameraObject(struct Sprite *sprite)
  {
      void (*callbacks[ARRAY_COUNT(sCameraObjectFuncs)])(struct Sprite *);
  
@@ -839,7 +792,7 @@ index 22c1dce..ace4d30 100644
      memcpy(callbacks, sCameraObjectFuncs, sizeof sCameraObjectFuncs);
      callbacks[sprite->sCamera_State](sprite);
  }
-@@ -7821,6 +7647,16 @@ static void UpdateObjectEventOffscreen(struct ObjectEvent *objectEvent, struct S
+@@ -7821,6 +7591,16 @@ static void UpdateObjectEventOffscreen(struct ObjectEvent *objectEvent, struct S
  
      if ((s16)y >= DISPLAY_HEIGHT + 16 || (s16)y2 < -16)
          objectEvent->offScreen = TRUE;
@@ -856,7 +809,7 @@ index 22c1dce..ace4d30 100644
  }
  
  static void UpdateObjectEventSpriteVisibility(struct ObjectEvent *objectEvent, struct Sprite *sprite)
-@@ -9024,6 +8860,16 @@ void UpdateObjectEventSpriteInvisibility(struct Sprite *sprite, bool8 invisible)
+@@ -9024,6 +8804,16 @@ void UpdateObjectEventSpriteInvisibility(struct Sprite *sprite, bool8 invisible)
      x2 = x - (sprite->centerToCornerVecX >> 1);
      y2 = y - (sprite->centerToCornerVecY >> 1);
  
@@ -873,7 +826,7 @@ index 22c1dce..ace4d30 100644
      if ((s16)x >= DISPLAY_WIDTH + 16 || x2 < -16)
          sprite->invisible = TRUE;
      if ((s16)y >= DISPLAY_HEIGHT + 16 || y2 < -16)
-@@ -9216,6 +9062,10 @@ static void DoShadowFieldEffect(struct ObjectEvent *objectEvent)
+@@ -9216,6 +9006,10 @@ static void DoShadowFieldEffect(struct ObjectEvent *objectEvent)
      if (!objectEvent->hasShadow)
      {
          objectEvent->hasShadow = TRUE;
