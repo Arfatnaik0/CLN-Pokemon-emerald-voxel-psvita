@@ -1,3 +1,7 @@
+/*
+ * PS Vita sprite/weather shim for emerald-3ds voxel code.
+ * From HctrRB/pokeemerald-vita-3ds (MIT; see LICENSE and NOTICE.md).
+ */
 #ifndef _3DS_VIDEO_H_VOXEL_STUB_
 #define _3DS_VIDEO_H_VOXEL_STUB_
 

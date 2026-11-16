@@ -1,11 +1,9 @@
 /*
  * Hardware-accelerated 3D Voxel Overworld Renderer for PlayStation Vita (vitaGL).
- * Derived from ZallaxDev/emerald-3ds (ctr_voxel.c, CC BY-NC-SA 4.0; see NOTICE.md):
- * - 3D Polygonal buildings with 45-degree pitched roofs, chamfers and eaves (buildings.bin)
- * - Continuous terrain elevation, slopes, terraces and jump ledges (relief.bin)
- * - 3D Wooden signposts (signposts.bin)
- * - Billboard tree cards, long grass, and 3D tall/ash grass blades (trees.rgba5551)
- * - 512x256 Metatile atlas and dynamic sprite slot decoding with cast shadows
+ * Originally derived from ZallaxDev/emerald-3ds (ctr_voxel.c, CC BY-NC-SA 4.0)
+ * and ported to PS Vita / vitaGL by HctrRB/pokeemerald-vita-3ds (CC BY-NC-SA 4.0);
+ * further adapted here for gba_easy_draw Pass_Overlay2D sync, 3D tall/ash grass,
+ * and -DDRAW_SPEEDHACK vertex ring streaming (see LICENSE and NOTICE.md).
  */
 
 #ifdef PLATFORM_SDL2

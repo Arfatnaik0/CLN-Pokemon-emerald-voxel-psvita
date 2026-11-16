@@ -1,3 +1,7 @@
+/*
+ * Day/night cycle clock and lighting state.
+ * From HctrRB/pokeemerald-vita-3ds (MIT; see LICENSE and NOTICE.md).
+ */
 #include <stdint.h>
 #include <math.h>
 #include "global.h"

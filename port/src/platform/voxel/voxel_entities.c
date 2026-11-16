@@ -1,5 +1,7 @@
 /*
- * Player and NPC billboards. See voxel_entities.h and NOTICE.md.
+ * Player and NPC billboards.
+ * Derived from ZallaxDev/emerald-3ds (CC BY-NC-SA 4.0) via HctrRB/pokeemerald-vita-3ds
+ * (CC BY-NC-SA 4.0); see voxel_entities.h, LICENSE, and NOTICE.md.
  */
 
 /* Before global.h, which redefines abs() as a macro over stdlib's prototype. */

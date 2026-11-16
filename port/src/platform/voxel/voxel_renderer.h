@@ -1,3 +1,7 @@
+/*
+ * PS Vita voxel renderer public entry points.
+ * Derived from HctrRB/pokeemerald-vita-3ds (MIT; see LICENSE and NOTICE.md).
+ */
 #ifndef GUARD_VOXEL_RENDERER_H
 #define GUARD_VOXEL_RENDERER_H
 

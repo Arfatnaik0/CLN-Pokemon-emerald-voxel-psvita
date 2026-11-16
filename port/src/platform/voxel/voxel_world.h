@@ -1,6 +1,7 @@
 /*
- * Logical map view for the voxel overworld. Derived from the MIT-licensed
- * voxel_world.c/.h of pokeemerald-multiplatform; see NOTICE.md.
+ * Logical map view for the voxel overworld. Derived from pokeemerald-multiplatform
+ * (MIT), expanded in ZallaxDev/emerald-3ds (>= 0.5.0, CC BY-NC-SA 4.0), and ported
+ * to PS Vita via HctrRB/pokeemerald-vita-3ds (CC BY-NC-SA 4.0; see LICENSE and NOTICE.md).
  *
  * This header is deliberately free of both game and libctru types: the module
  * that implements it is a game translation unit (it reads gMapHeader and the

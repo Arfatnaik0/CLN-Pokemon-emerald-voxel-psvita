@@ -1,3 +1,8 @@
+/*
+ * Tree canopies and tall/ash grass atlas definitions.
+ * Derived from ZallaxDev/emerald-3ds (CC BY-NC-SA 4.0) via HctrRB/pokeemerald-vita-3ds
+ * (CC BY-NC-SA 4.0), with tall/ash grass additions; see LICENSE and NOTICE.md.
+ */
 #include <stdint.h>
 #include <stddef.h>
 #include "voxel_tree.h"

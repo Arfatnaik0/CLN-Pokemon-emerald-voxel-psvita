@@ -35,7 +35,7 @@ A native PlayStation Vita port of the `pokeemerald-multiplatform` decompilation.
 
 ## 3D voxel mode
 
-The 3D renderer lives in `port/src/platform/voxel/`. It is a `vitaGL` diorama overworld renderer modeled on `emerald-3ds`.
+The 3D renderer lives in `port/src/platform/voxel/`. It is a `vitaGL` diorama overworld renderer originally created in [`ZallaxDev/emerald-3ds`](https://github.com/ZallaxDev/emerald-3ds) (`CC BY-NC-SA 4.0`) and ported to PS Vita / `vitaGL` by [`HctrRB/pokeemerald-vita-3ds`](https://github.com/HctrRB/pokeemerald-vita-3ds), then integrated here with this port's multi-core `gba_easy_draw` UI overlay and 3D tall/ash grass.
 
 - **Buildings** (`buildings.bin`): polygonal roofs, eaves, chamfers and doorways (`PortDoor_Get`), with a roof cutaway when the player walks into or behind a building.
 - **Terrain** (`relief.bin`, `regions.bin`): continuous elevation, slopes, terraces and jump ledges.
@@ -213,7 +213,7 @@ This is an unofficial fan port, made for education and preservation.
 - Pokémon, Pokémon Emerald, and all related characters, names, sprites, audio and trademarks belong to Nintendo, Creatures Inc. and GAME FREAK inc.
 - The project is not affiliated with, endorsed by, sponsored by or supported by Nintendo, Creatures Inc. or GAME FREAK inc.
 - No copyrighted ROMs, Nintendo or Game Freak game data, audio, graphics or compiled VPK binaries are hosted or distributed here. You must supply your own legally dumped Pokémon Emerald ROM and build locally.
-- The repo has separate licenses for separate parts; there is no single MIT grant over everything. The original PS Vita runtime, PPU, audio, test and build code, along with the retained `pokeemerald-multiplatform` port modifications, is MIT. The 3D voxel subsystem under `port/src/platform/voxel/*` (ported from `ZallaxDev/emerald-3ds >= 0.5.0`, excluding the MIT PS Vita shim files listed in `LICENSE`) and [port/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md](port/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md) stay under CC BY-NC-SA 4.0. Dependencies linked during local builds keep their own licenses: `vitaGL` is `LGPL-3.0-or-later` / `GPL-3.0`, and `SDL2` is `zlib`. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
+- The repo has separate licenses for separate parts; there is no single MIT grant over everything. The original PS Vita runtime, PPU, audio, test and build code, along with the retained `pokeemerald-multiplatform` port modifications and `HctrRB/pokeemerald-vita-3ds` MIT compatibility shims/`vita_daynight.c`/hooks, is MIT. The 3D voxel diorama subsystem under `port/src/platform/voxel/*` (originally from `ZallaxDev/emerald-3ds >= 0.5.0`, ported to PS Vita/`vitaGL` by `HctrRB/pokeemerald-vita-3ds`, and further adapted here — excluding the MIT shim headers and `voxel_vita_bridge.c` listed in `LICENSE`) stays under `CC BY-NC-SA 4.0`. Dependencies linked during local builds keep their own licenses: `vitaGL` is `LGPL-3.0-or-later` / `GPL-3.0`, and `SDL2` is `zlib`. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
 - Nothing here grants rights over Nintendo IP, and nothing relicenses upstream `pret/pokeemerald` or `pokeemerald-multiplatform` sources. That includes the unmodified `GPL-2.0` / `MPL-2.0` `bios.c` and the context lines of the upstream hook patch in [port/patches/upstream-vita-hooks.patch](port/patches/upstream-vita-hooks.patch).
 
 ---
@@ -221,6 +221,7 @@ This is an unofficial fan port, made for education and preservation.
 ## Credits
 
 - [pret/pokeemerald](https://github.com/pret/pokeemerald): the Pokémon Emerald disassembly and decompilation project.
-- `pokeemerald-multiplatform` (`Kurausukun`, `NT_x86`, `Normmatt`, `camthesaxman` and contributors): the original PC, SDL2 and Android multiplatform port, including the `ModManager` and portable audio foundation.
-- `ZallaxDev` (`emerald-3ds`, `poke-corpus`, `pokeheartgold`): the 3D voxel diorama architecture (`buildings.bin`, `relief.bin`, `regions.bin`, `signposts.bin`, `trees.rgba5551`) and the Gen-4 style follower sprite corpus.
+- [`gradenGnostic/pokeemerald-multiplatform`](https://github.com/gradenGnostic/pokeemerald-multiplatform) (`Kurausukun`, `NT_x86`, `Normmatt`, `camthesaxman` and contributors): the original PC, SDL2 and Android multiplatform port, including the `ModManager`, `gba_easy_draw`, and portable audio foundation.
+- [`HctrRB/pokeemerald-vita-3ds`](https://github.com/HctrRB/pokeemerald-vita-3ds) (`HctrRB`): the PS Vita `vitaGL` port of the `emerald-3ds` voxel renderer (`port/src/platform/voxel/*`), `vita_daynight.c`, Vita compatibility shims, and voxel game hook patterns.
+- [`ZallaxDev/emerald-3ds`](https://github.com/ZallaxDev/emerald-3ds) (`Zallax` and Emerald 3DS contributors, `poke-corpus`, `pokeheartgold`): the 3D voxel diorama architecture (`buildings.bin`, `relief.bin`, `regions.bin`, `signposts.bin`, `trees.rgba5551`) and the Gen-4 style follower sprite corpus.
 - [VitaSDK](https://vitasdk.org/), [vitaGL](https://github.com/Rinnegatamante/vitaGL) and SDL2: the open-source Vita toolchain, OpenGL backend, and input/audio layer.

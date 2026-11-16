@@ -1,3 +1,7 @@
+/*
+ * PS Vita voxel asset file opener.
+ * Adapted from HctrRB/pokeemerald-vita-3ds (MIT; see LICENSE and NOTICE.md).
+ */
 #ifndef VOXEL_FILE_H
 #define VOXEL_FILE_H
 

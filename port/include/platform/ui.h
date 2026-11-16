@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Compatible stubs for HctrRB/pokeemerald-vita-3ds Pass 6 UI queries (MIT; see LICENSE and NOTICE.md). */
 /* Original multiplatform GBA UI is preserved; these queries keep upstream voxel Pass 6 compatible. */
 static inline bool Ui_MirrorCovers(void)
 {

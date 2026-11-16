@@ -2,8 +2,9 @@
 #define GUARD_VITA_VOXEL_PERF_H
 
 /*
- * Lightweight compatibility shim for upstream voxel_renderer telemetry markers.
- * Keeps our optimized 2D/async perf logger in src/platform/vita_perf.c separate.
+ * Lightweight compatibility shim for HctrRB/pokeemerald-vita-3ds voxel_renderer
+ * telemetry markers (MIT; see LICENSE and NOTICE.md). Keeps our optimized
+ * 2D/async perf logger in src/platform/vita_perf.c separate.
  */
 
 #include <stdbool.h>

@@ -1,35 +1,55 @@
 This repository contains multiple components governed by distinct licenses. No single permissive grant overrides upstream ShareAlike, copyleft, or intellectual-property rights. See NOTICE.md for full provenance and attribution details.
 
 ================================================================================
-1. Original PS Vita Port Code & Multiplatform Port Modifications — MIT License
+1. Original PS Vita Port Code & Upstream MIT Port Modifications — MIT License
 ================================================================================
 
 (A) Original PS Vita Port Code, Optimizations, Hooks, Tests & Scripts:
 Copyright (c) 2026 Pokémon Emerald Voxel PS Vita contributors
 
-Applies to original PS Vita port modifications and tooling authored for this
-repository, specifically:
+Applies ONLY to original code and tooling authored specifically for this
+repository, namely:
 - port/vita/* (CMake build, Vita scripts, LiveArea generators/verifiers, SDL2 patch)
-- port/include/platform/* (vita_perf.h, vita_perf_rolling.h, frame_pacing.h, etc.)
-- port/src/platform/vita/*, port/src/platform/vita_perf.c,
-  port/src/platform/vita_thread_affinity.*, port/src/platform/gba_easy_draw_workers.*
-- PS Vita compatibility shims under port/src/platform/voxel/
-  (3ds_log.h, 3ds_platform.h, 3ds_video.h, port_log.h, port_platform.h,
-  voxel_file.h, voxel_renderer.h, voxel_vita_bridge.c)
+- port/include/platform/{frame_pacing.h, vita_controller_state.h, vita_perf.h,
+  vita_perf_rolling.h}
+- port/src/platform/vita_perf.c, port/src/platform/vita_thread_affinity.*,
+  port/src/platform/gba_easy_draw_workers.*, port/src/platform/vita/vita_platform.h
+- port/src/platform/voxel/voxel_vita_bridge.c
 - Vita-specific additions in port/src/platform/sdl2.c, gba_easy_draw.c, cgb_audio.c
-- Authored `+` addition hunks in port/patches/upstream-vita-hooks.patch (excluding
-  upstream context and replaced `-` lines covered by Section 3)
-- port/tests/platform/*, port/tools/extract_voxel_layout_models.py, scripts/*,
-  README.md, ARCHITECTURE.md
+- Originally authored `+` addition hunks in port/patches/upstream-vita-hooks.patch
+  (such as 3D tall-grass state hooks and connected-map object spawn bounds;
+  excluding upstream context, `-` lines, and HctrRB/ZallaxDev hooks listed below)
+- port/tests/platform/*, port/tools/extract_voxel_layout_models.py,
+  port/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md, scripts/*, README.md, ARCHITECTURE.md
 
-(B) Upstream pokeemerald-multiplatform Portions:
+(B) Upstream gradenGnostic/pokeemerald-multiplatform Portions:
 Copyright (c) 2026 pokeemerald-multiplatform contributors
 
 Portions of port/src/platform/ (such as the base sdl2.c, gba_easy_draw.c,
 and cgb_audio.c abstractions, plus earlier voxel ancestry noted below) derive
 from pokeemerald-multiplatform ("Port Modifications").
 
-MIT License Grant (applying expressly to BOTH Section 1(A) and Section 1(B) above):
+(C) HctrRB/pokeemerald-vita-3ds MIT-Licensed PS Vita Portions:
+Copyright (c) 2026 HctrRB / pokeemerald-vita-3ds and pokeemerald-multiplatform contributors
+Upstream: https://github.com/HctrRB/pokeemerald-vita-3ds
+
+Applies to MIT-licensed PS Vita port code, compatibility shims, and bridge
+interfaces taken from or adapted from HctrRB/pokeemerald-vita-3ds:
+- PS Vita voxel compatibility shims under port/src/platform/voxel/:
+  3ds_log.h, 3ds_platform.h, 3ds_video.h, port_log.h, port_platform.h,
+  voxel_file.h, voxel_renderer.h
+- port/src/platform/vita/vita_daynight.c (from HctrRB/pokeemerald-vita-3ds,
+  along with compatible declarations/stubs derived from HctrRB's headers in
+  port/include/platform/{framedraw.h, ui.h, vita_daynight.h, vita_extras.h,
+  voxel_snapshot.h} and port/src/platform/vita/vita_perf.h)
+- Voxel bridge hooks in port/patches/upstream-vita-hooks.patch ported via
+  HctrRB/pokeemerald-vita-3ds (including PortDoor_* in src/field_door.c /
+  src/field_camera.c, sMapMutationLock / Overworld_IsReturningToField in
+  src/overworld.c, UpdateShadowFieldEffect voxel check in
+  src/field_effect_helpers.c, and VoxelRenderer_NotifyTilesetAnimWrite in
+  src/tileset_anims.c)
+
+MIT License Grant (applying to Sections 1(A), 1(B), and 1(C) above):
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -50,30 +70,35 @@ MIT License Grant (applying expressly to BOTH Section 1(A) and Section 1(B) abov
   SOFTWARE.
 
 ================================================================================
-2. Voxel 3D Diorama Subsystem (ZallaxDev/emerald-3ds Derived) — CC BY-NC-SA 4.0
+2. Voxel 3D Diorama Subsystem (Emerald 3DS / HctrRB Vita Port) — CC BY-NC-SA 4.0
 ================================================================================
 
-The 3D diorama subsystem adapted from ZallaxDev/emerald-3ds (>= 0.5.0) is
-licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
-International License (CC BY-NC-SA 4.0):
+The 3D diorama subsystem under port/src/platform/voxel/ was originally created
+by Zallax and Emerald 3DS contributors in ZallaxDev/emerald-3ds (>= 0.5.0),
+ported to PS Vita / vitaGL by HctrRB in HctrRB/pokeemerald-vita-3ds, and
+further adapted here. It is licensed under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0):
 
   https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 Specifically:
-- Derived from ZallaxDev/emerald-3ds (>= 0.5.0) and ported to PS Vita:
+- Derived from ZallaxDev/emerald-3ds (>= 0.5.0) via HctrRB/pokeemerald-vita-3ds
+  (vitaGL PS Vita port):
   3ds_field_view.*, voxel_arena.*, voxel_battle.*, voxel_building.*,
   voxel_grade.*, voxel_lighting.*, voxel_regions.*, voxel_relief.*,
   voxel_sign.*, voxel_sprite_slots.*, voxel_swoop.*, voxel_tree.*,
-  voxel_tuning.h, voxel_unswizzle.h, voxel_renderer.c, and
-  port/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md.
+  voxel_tuning.h, voxel_unswizzle.h, and voxel_renderer.c.
 - Mixed ancestry (originally derived from MIT-licensed pokeemerald-multiplatform
-  scaffolding, rewritten/expanded under CC BY-NC-SA 4.0 in emerald-3ds >= 0.5.0,
-  and adapted here under CC BY-NC-SA 4.0):
+  scaffolding, rewritten/expanded under CC BY-NC-SA 4.0 in ZallaxDev/emerald-3ds
+  >= 0.5.0, ported to PS Vita in HctrRB/pokeemerald-vita-3ds under
+  CC BY-NC-SA 4.0, and adapted here under CC BY-NC-SA 4.0):
   voxel_world.*, voxel_camera.*, voxel_mesh_builder.*, voxel_atlas.*, and
   voxel_entities.*.
 
 Under CC BY-NC-SA 4.0:
-- Attribution: Retain credit to ZallaxDev/emerald-3ds and see NOTICE.md.
+- Attribution: Retain credit to Zallax and Emerald 3DS contributors
+  (ZallaxDev/emerald-3ds) AND HctrRB (HctrRB/pokeemerald-vita-3ds), and see
+  NOTICE.md.
 - NonCommercial: You may not use this material for commercial purposes.
 - ShareAlike: If you remix, transform, or build upon this material, you must
   distribute your contributions under the same CC BY-NC-SA 4.0 license.
@@ -82,12 +107,11 @@ Under CC BY-NC-SA 4.0:
 3. Scope & Exclusions
 ================================================================================
 
-Consistent with upstream pokeemerald-multiplatform Scope exclusions, nothing in
-this LICENSE grants rights to, or relicenses:
+Consistent with upstream pokeemerald-multiplatform and pokeemerald-vita-3ds
+Scope exclusions, nothing in this LICENSE grants rights to, or relicenses:
 - The upstream pret/pokeemerald decompilation or contributions from its
   authors, upstream context (` `) and removed (`-`) lines in
-  port/patches/upstream-vita-hooks.patch (whose newly authored `+` hook
-  additions only are covered by Section 1(A)), or unmodified upstream platform
+  port/patches/upstream-vita-hooks.patch, or unmodified upstream platform
   modules (such as bios.c containing VBA-M GPL-2.0 and mGBA MPL-2.0 code,
   supplied locally by the developer's checkout).
 - Pokémon, Pokémon Emerald, Pokémon characters, names, sprites, maps, graphics,

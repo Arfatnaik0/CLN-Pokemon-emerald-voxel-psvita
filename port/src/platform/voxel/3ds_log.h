@@ -1,3 +1,7 @@
+/*
+ * PS Vita logging shim for emerald-3ds voxel code.
+ * Adapted from HctrRB/pokeemerald-vita-3ds (MIT; see LICENSE and NOTICE.md).
+ */
 #ifndef _3DS_LOG_H_VOXEL_
 #define _3DS_LOG_H_VOXEL_
 

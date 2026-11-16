@@ -2,11 +2,9 @@
  * Logical map view for the voxel overworld.
  *
  * Ported from the MIT-licensed src/platform/voxel/voxel_world.c of
- * pokeemerald-multiplatform (see NOTICE.md). The classification rules, the
- * instance layout and the "current map reads gBackupMapLayout, connections
- * read the static layout" split are that file's; what is new here is that
- * every payload goes through the asset layer instead of being dereferenced
- * directly, because the linker only kept stubs where the graphics used to be.
+ * pokeemerald-multiplatform, expanded in ZallaxDev/emerald-3ds (>= 0.5.0,
+ * CC BY-NC-SA 4.0), and ported to PS Vita via HctrRB/pokeemerald-vita-3ds
+ * (CC BY-NC-SA 4.0; see LICENSE and NOTICE.md).
  */
 
 #include <stdint.h>
