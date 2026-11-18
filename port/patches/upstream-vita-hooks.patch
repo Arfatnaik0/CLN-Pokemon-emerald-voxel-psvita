@@ -1350,3 +1350,21 @@ index 595ba08..6be2dfd 100644
  
      sTilesetDMA3TransferBufferSize = 0;
  }
+diff --git a/src/main.c b/src/main.c
+index 707a44a..faf65ec 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -157,8 +157,12 @@ void AgbMain(void)
+          && JOY_HELD_RAW(A_BUTTON)
+          && JOY_HELD_RAW(B_START_SELECT) == B_START_SELECT)
+         {
+-            rfu_REQ_stopMode();
+-            rfu_waitREQComplete();
++            // SDL ports may not initialize the optional RFU stack.
++            if (gSTWIStatus != NULL)
++            {
++                rfu_REQ_stopMode();
++                rfu_waitREQComplete();
++            }
+             DoSoftReset();
+         }
