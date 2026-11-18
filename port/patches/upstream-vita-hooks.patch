@@ -1354,7 +1354,7 @@ diff --git a/src/main.c b/src/main.c
 index 707a44a..faf65ec 100644
 --- a/src/main.c
 +++ b/src/main.c
-@@ -157,8 +157,12 @@ void AgbMain(void)
+@@ -157,7 +157,11 @@ void AgbMain(void)
           && JOY_HELD_RAW(A_BUTTON)
           && JOY_HELD_RAW(B_START_SELECT) == B_START_SELECT)
          {
