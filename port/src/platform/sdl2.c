@@ -6,6 +6,7 @@
 #include <time.h>
 
 #ifdef PLATFORM_VITA
+#include <psp2/appmgr.h>
 #include <psp2/kernel/clib.h>
 #include <psp2/kernel/cpu.h>
 #include <psp2/kernel/sysmem.h>
@@ -2380,7 +2381,13 @@ void Platform_SetAlarm(u8 *alarmData)
 
 void SoftReset(u32 resetFlags)
 {
+#ifdef PLATFORM_VITA
+    /* Reload the executable to reset game globals and platform workers together. */
+    int result = sceAppMgrLoadExec("app0:eboot.bin", NULL, NULL);
+    SDL_Log("Soft reset could not restart the game: 0x%08x", (unsigned int)result);
+#else
     puts("Soft Reset called. Exiting.");
+#endif
     exit(0);
 }
 
