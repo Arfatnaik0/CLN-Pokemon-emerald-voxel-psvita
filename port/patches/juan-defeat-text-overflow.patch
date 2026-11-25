@@ -1,0 +1,41 @@
+diff --git a/include/battle.h b/include/battle.h
+index 855f085..55de833 100755
+--- a/include/battle.h
++++ b/include/battle.h
+@@ -621,7 +621,7 @@ extern u16 gBattle_WIN0H;
+ extern u16 gBattle_WIN0V;
+ extern u16 gBattle_WIN1H;
+ extern u16 gBattle_WIN1V;
+-extern u8 gDisplayedStringBattle[300];
++extern u8 gDisplayedStringBattle[512];
+ extern u8 gBattleTextBuff1[TEXT_BUFF_ARRAY_COUNT];
+ extern u8 gBattleTextBuff2[TEXT_BUFF_ARRAY_COUNT];
+ extern u8 gBattleTextBuff3[TEXT_BUFF_ARRAY_COUNT];
+diff --git a/src/battle_main.c b/src/battle_main.c
+index bd0574b..25f9cce 100644
+--- a/src/battle_main.c
++++ b/src/battle_main.c
+@@ -134,15 +134,17 @@ EWRAM_DATA u16 gBattle_WIN0H = 0;
+ EWRAM_DATA u16 gBattle_WIN0V = 0;
+ EWRAM_DATA u16 gBattle_WIN1H = 0;
+ EWRAM_DATA u16 gBattle_WIN1V = 0;
+-EWRAM_DATA u8 gDisplayedStringBattle[300] = {0};
++EWRAM_DATA u8 gDisplayedStringBattle[512] = {0};
+ EWRAM_DATA u8 gBattleTextBuff1[TEXT_BUFF_ARRAY_COUNT] = {0};
+ EWRAM_DATA u8 gBattleTextBuff2[TEXT_BUFF_ARRAY_COUNT] = {0};
+ EWRAM_DATA u8 gBattleTextBuff3[TEXT_BUFF_ARRAY_COUNT] = {0};
+-// The below array is never intentionally used. However, Juan's
+-// defeat text (SootopolisCity_Gym_1F_Text_JuanDefeat) is too long
+-// for gDisplayedStringBattle and overflows into this array. If it
+-// is removed (and none of the buffers above are increased in size)
+-// it will instead overflow into useful data.
++// In the original GBA build, gDisplayedStringBattle was 300 bytes and Juan's
++// 359-byte defeat text (SootopolisCity_Gym_1F_Text_JuanDefeat) overflowed
++// through gBattleTextBuff1/2/3 into the unused sFlickerArray padding below.
++// Modern GCC/Vita builds omit unused static variables and reorder globals,
++// placing gBattleControllerExecFlags right after gDisplayedStringBattle and
++// freezing the game; enlarging gDisplayedStringBattle to 512 bytes prevents
++// that overflow without relying on linker layout.
+ EWRAM_DATA static u32 sFlickerArray[25] = {0};
+ EWRAM_DATA u32 gBattleTypeFlags = 0;
+ EWRAM_DATA u8 gBattleEnvironment = 0;
