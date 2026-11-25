@@ -16,7 +16,7 @@ Syncs the data-free PS Vita port source, build scripts, and platform tests from
 
 Options:
   --target DIR    Local pokeemerald source root (default: ./pokeemerald)
-  --apply-patch   Also attempt `git apply` of port/patches/upstream-vita-hooks.patch
+  --apply-patch   Also attempt `git apply` of port/patches/*.patch
   --run-tests     Run host platform unit/parity tests after syncing
 EOF
 }
@@ -66,18 +66,22 @@ cp "${PORT_DIR}/docs/VITA_VOXEL_VISUAL_LIMITATIONS.md" "${TARGET_DIR}/docs/VITA_
 echo "Synced port overlay into ${TARGET_DIR}"
 
 if [[ "${APPLY_PATCH}" -eq 1 ]]; then
-    PATCH_FILE="${PORT_DIR}/patches/upstream-vita-hooks.patch"
-    if git -C "${TARGET_DIR}" apply --check --reverse "${PATCH_FILE}" 2>/dev/null; then
-        echo "upstream-vita-hooks.patch is already applied cleanly in ${TARGET_DIR}"
-    elif git -C "${TARGET_DIR}" apply --check "${PATCH_FILE}" 2>/dev/null; then
-        git -C "${TARGET_DIR}" apply "${PATCH_FILE}"
-        echo "Applied upstream-vita-hooks.patch"
-    else
-        echo "ERROR: upstream-vita-hooks.patch does not apply cleanly to ${TARGET_DIR}." >&2
-        echo "This patch targets the integrated multiplatform/follower baseline (commit 15c5805)." >&2
-        echo "Rebase or merge the hook hunks manually if targeting a different upstream revision." >&2
-        exit 1
-    fi
+    for PATCH_NAME in upstream-vita-hooks.patch juan-defeat-text-overflow.patch; do
+        PATCH_FILE="${PORT_DIR}/patches/${PATCH_NAME}"
+        if git -C "${TARGET_DIR}" apply --check --reverse "${PATCH_FILE}" 2>/dev/null; then
+            echo "${PATCH_NAME} is already applied cleanly in ${TARGET_DIR}"
+        elif git -C "${TARGET_DIR}" apply --check "${PATCH_FILE}" 2>/dev/null; then
+            git -C "${TARGET_DIR}" apply "${PATCH_FILE}"
+            echo "Applied ${PATCH_NAME}"
+        else
+            echo "ERROR: ${PATCH_NAME} does not apply cleanly to ${TARGET_DIR}." >&2
+            if [[ "${PATCH_NAME}" == "upstream-vita-hooks.patch" ]]; then
+                echo "This patch targets the integrated multiplatform/follower baseline (commit 15c5805)." >&2
+                echo "Rebase or merge the hook hunks manually if targeting a different upstream revision." >&2
+            fi
+            exit 1
+        fi
+    done
 fi
 
 if [[ "${RUN_TESTS}" -eq 1 ]]; then
