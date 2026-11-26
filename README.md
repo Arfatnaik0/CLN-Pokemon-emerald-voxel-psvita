@@ -7,6 +7,10 @@ A native PlayStation Vita port of the `pokeemerald-multiplatform` decompilation.
 
 ---
 
+<a href="https://www.buymeacoffee.com/arfatnaik0" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 45px !important;width: 162px !important;" >
+</a>
+
 ## Features
 
 - Runs natively on the Vita (`PKEV00001`, "Pokemon Emerald Voxel"). The decompiled C game logic executes directly on the Cortex-A9; this is not a GBA emulator. Saves go to `ux0:data/pokeemerald/pokeemerald.sav` and settings to `ux0:data/pokeemerald/pokeemerald.cfg`.
